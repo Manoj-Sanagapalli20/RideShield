@@ -1,0 +1,17 @@
+{
+  "name": "mainservice",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "axios": "^1.6.8",
+    "express": "^4.19.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

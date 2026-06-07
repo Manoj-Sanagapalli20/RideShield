@@ -1,0 +1,150 @@
+# ══════════════════════════════════════════════════════════════
+#  RideShield — Docker Compose
+#  Cloud services (MongoDB, RabbitMQ, Redis) are NOT included
+#  here — they are managed externally and injected via .env
+# ══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── DummyRapido Backend (port 5000) ─────────────────────────
+  dummyrapido-backend:
+    build:
+      context: ./Frontend/DummyRapido/backend
+    container_name: dummyrapido-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./Frontend/DummyRapido/backend/.env
+    networks:
+      - rideshield-net
+
+  # ── AuthService (port 5001) ──────────────────────────────────
+  auth-service:
+    build:
+      context: ./Backend/AuthService
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    environment:
+      - DUMMYRAPIDO_URL=http://dummyrapido-backend:5000
+      - PAYMENT_SERVICE_URL=http://payment-service:5003
+    networks:
+      - rideshield-net
+
+  # ── PolicyService (port 5002) ────────────────────────────────
+  policy-service:
+    build:
+      context: ./Backend/PolicyService
+    container_name: policy-service
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    environment:
+      - DUMMYRAPIDO_URL=http://dummyrapido-backend:5000
+      - PAYMENT_SERVICE_URL=http://payment-service:5003
+    env_file:
+      - ./Backend/PolicyService/.env
+    networks:
+      - rideshield-net
+
+  # ── PaymentService (port 5003) ───────────────────────────────
+  payment-service:
+    build:
+      context: ./Backend/PaymentService
+    container_name: payment-service
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    env_file:
+      - ./Backend/PaymentService/.env
+    networks:
+      - rideshield-net
+
+  # ── AddressPolling (port 5004) ───────────────────────────────
+  address-polling:
+    build:
+      context: ./Backend/AddressPolling
+    container_name: address-polling
+    restart: unless-stopped
+    ports:
+      - "5004:5004"
+    env_file:
+      - ./Backend/AddressPolling/.env
+    networks:
+      - rideshield-net
+
+  # ── MainService (port 5005) ──────────────────────────────────
+  main-service:
+    build:
+      context: ./Backend/MainService
+    container_name: main-service
+    restart: unless-stopped
+    ports:
+      - "5005:5005"
+    environment:
+      - PAYMENT_SERVICE_URL=http://payment-service:5003
+      - ML_SERVICE_URL=http://ml-service:8000
+      - DUMMYRAPIDO_URL=http://dummyrapido-backend:5000
+    env_file:
+      - ./Backend/MainService/.env
+    depends_on:
+      - payment-service
+    networks:
+      - rideshield-net
+
+  # ── ML Service (port 8000) ───────────────────────────────────
+  ml-service:
+    build:
+      context: ./Backend/ML-Service
+    container_name: ml-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./Backend/ML-Service/.env
+    networks:
+      - rideshield-net
+
+  # ── NotificationService (port 3004) ─────────────────────────
+  notification-service:
+    build:
+      context: ./Backend/NotificationService
+    container_name: notification-service
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    env_file:
+      - ./Backend/NotificationService/.env
+    networks:
+      - rideshield-net
+
+  # ── UserDashboard Frontend (port 3000) ───────────────────────
+  user-dashboard:
+    build:
+      context: ./Frontend/UserDashboard/reactjs
+    container_name: user-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - rideshield-net
+
+  # ── DummyRapido Frontend (port 3001) ─────────────────────────
+  dummyrapido-frontend:
+    build:
+      context: ./Frontend/DummyRapido/frontend
+    container_name: dummyrapido-frontend
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    networks:
+      - rideshield-net
+
+# ── Shared network ──────────────────────────────────────────
+networks:
+  rideshield-net:
+    driver: bridge

@@ -1,0 +1,51 @@
+FROM node:20-bookworm
+
+# Install Python 3.11 & build tools
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install PM2 globally
+RUN npm install -g pm2
+
+# Copy repository explicitly
+COPY . .
+
+# ─────────────────────────────────────────────────────────────
+# 1. Install Dependencies for Backend Node Services
+# ─────────────────────────────────────────────────────────────
+RUN cd Frontend/DummyRapido/backend && npm ci --omit=dev
+RUN cd Backend/AuthService && npm ci --omit=dev
+RUN cd Backend/PolicyService && npm ci --omit=dev
+RUN cd Backend/PaymentService && npm ci --omit=dev
+RUN cd Backend/AddressPolling && npm ci --omit=dev
+RUN cd Backend/MainService && npm ci --omit=dev
+RUN cd Backend/NotificationService && npm ci --omit=dev
+
+# ─────────────────────────────────────────────────────────────
+# 2. Install Dependencies for ML-Service (Python)
+# ─────────────────────────────────────────────────────────────
+# Using --break-system-packages is safe inside an isolated Docker container
+RUN pip3 install --no-cache-dir -r Backend/ML-Service/requirements.txt --break-system-packages
+
+# ─────────────────────────────────────────────────────────────
+# 3. Build Frontends (Vite creates static /dist files)
+# ─────────────────────────────────────────────────────────────
+RUN cd Frontend/UserDashboard/reactjs && npm ci && npm run build
+RUN cd Frontend/DummyRapido/frontend && npm ci && npm run build
+
+# Expose ports that matter for users (User dashboard & Rapido Mock)
+EXPOSE 3000 3001 5000 5001 5002 5003 5004 5005 3004 8000
+
+# Use process environment variables, but override networking to localhost instead of Docker networking
+# so the internal PM2 processes can talk to each other
+ENV DUMMYRAPIDO_URL="http://localhost:5000"
+ENV PAYMENT_SERVICE_URL="http://localhost:5003"
+ENV ML_SERVICE_URL="http://localhost:8000"
+
+# PM2 command to start all services and keep container alive
+CMD ["pm2-runtime", "start", "ecosystem.config.js"]

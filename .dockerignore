@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+dist
+build
+*.log
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.venv
+venv
