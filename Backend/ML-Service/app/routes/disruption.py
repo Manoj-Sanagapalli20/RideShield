@@ -21,8 +21,8 @@ class DisruptionRequest(BaseModel):
     date: str
 
 def _apply_mock_if_empty(disruptions: list) -> list:
-    """If no real disruptions were detected, return demo sample data."""
-    return disruptions if disruptions else MOCK_DISRUPTIONS
+    """Return actual disruptions directly without mock fallbacks."""
+    return disruptions
 
 @router.post("/zone-disruptions")
 def get_zone_disruptions(req: DisruptionRequest):

@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const { connectDB } = require('./utils/db');
 const { connectRedis } = require('./utils/redis');
-const { connectRabbitMQ } = require('./utils/rabbitmq');
+const { connectRabbitMQ, registerReconnectCallback } = require('./utils/rabbitmq');
 
 const { startPaymentConsumer } = require('./consumers/payment.consumer');
 const { startClaimConsumer } = require('./consumers/claim.consumer');
@@ -10,6 +10,18 @@ const { startDisruptionConsumer } = require('./consumers/disruption.consumer');
 
 async function startServer() {
   try {
+    // Register reconnect callback first so it can handle any future connection drops
+    registerReconnectCallback(async () => {
+      console.log('🔄 Reconnected to RabbitMQ. Restarting consumers...');
+      try {
+        await startPaymentConsumer();
+        await startClaimConsumer();
+        await startDisruptionConsumer();
+      } catch (e) {
+        console.warn("⚠️ Could not restart consumers after reconnect:", e.message);
+      }
+    });
+
     // 1. Core Infrastructure Initialization
     await connectDB();
     await connectRedis();

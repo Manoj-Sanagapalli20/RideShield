@@ -39,8 +39,15 @@ export default function DashboardPage() {
     const [showLocationModal, setShowLocationModal] = useState(true);
     const [manualCity, setManualCity] = useState("Bangalore");
     const [manualPincode, setManualPincode] = useState("560001");
-    const [manualDate, setManualDate] = useState("2026-03-18");
+    const [manualDate, setManualDate] = useState(() => {
+        const d = new Date();
+        const offset = d.getTimezoneOffset();
+        const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString().split("T")[0];
+    });
     const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analysisStage, setAnalysisStage] = useState("");
     const [payouts, setPayouts] = useState<Payout[]>([]);
     const [totalPayout, setTotalPayout] = useState(0);
     const [policy, setPolicy] = useState<PolicyData | null>(null);
@@ -86,7 +93,33 @@ export default function DashboardPage() {
 
     const handleCurrentLocation = () => {
         navigator.geolocation?.getCurrentPosition(
-            (p) => { pushLocation(p.coords.latitude, p.coords.longitude); setShowLocationModal(false); },
+            (p) => {
+                const lat = p.coords.latitude;
+                const lon = p.coords.longitude;
+                setShowLocationModal(false);
+                setIsAnalyzing(true);
+                setAnalysisStage("Contacting weather station via GPS coordinates...");
+
+                const d = new Date();
+                const offset = d.getTimezoneOffset();
+                const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+                const todayStr = localDate.toISOString().split("T")[0];
+
+                pushLocation(lat, lon, todayStr);
+
+                setTimeout(() => {
+                    setAnalysisStage("Retrieving partner shift activity logs...");
+                }, 900);
+
+                setTimeout(() => {
+                    setAnalysisStage("Verifying hourly rain and social alerts...");
+                }, 1800);
+
+                setTimeout(async () => {
+                    await loadData();
+                    setIsAnalyzing(false);
+                }, 2600);
+            },
             console.warn, { enableHighAccuracy: true }
         );
     };
@@ -98,8 +131,28 @@ export default function DashboardPage() {
             const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(manualCity)}&format=json&limit=1&addressdetails=1`);
             const d = await res.json();
             if (d?.length > 0) {
-                pushLocation(parseFloat(d[0].lat), parseFloat(d[0].lon), manualDate, manualPincode || d[0].address?.postcode);
+                const lat = parseFloat(d[0].lat);
+                const lon = parseFloat(d[0].lon);
+                const pc = manualPincode || d[0].address?.postcode || "000000";
+
                 setShowLocationModal(false);
+                setIsAnalyzing(true);
+                setAnalysisStage("Contacting regional weather stations...");
+
+                pushLocation(lat, lon, manualDate, pc);
+
+                setTimeout(() => {
+                    setAnalysisStage("Retrieving partner shift activity logs...");
+                }, 900);
+
+                setTimeout(() => {
+                    setAnalysisStage("Verifying hourly rain and social alerts...");
+                }, 1800);
+
+                setTimeout(async () => {
+                    await loadData();
+                    setIsAnalyzing(false);
+                }, 2600);
             } else alert("City not found.");
         } catch { alert("Network error."); }
         setIsFetchingLocation(false);
@@ -110,6 +163,35 @@ export default function DashboardPage() {
 
     return (
         <AppShell title="Dashboard" subtitle={`${getGreeting()}, ${firstName}`}>
+
+            {/* Analysis Overlay */}
+            <AnimatePresence>
+                {isAnalyzing && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/90 z-[110] flex items-center justify-center backdrop-blur-2xl p-4">
+                        <div className="text-center max-w-sm w-full">
+                            <div className="relative size-20 mx-auto mb-6 flex items-center justify-center">
+                                <motion.div 
+                                    animate={{ rotate: 360 }}
+                                    transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                                    className="absolute inset-0 rounded-full border-2 border-t-primary-500 border-r-transparent border-b-transparent border-l-transparent"
+                                />
+                                <FiShield className="size-8 text-primary-400 animate-pulse" />
+                            </div>
+                            <h3 className="text-white font-semibold text-lg mb-2">Analyzing Disruption Claim</h3>
+                            <p className="text-slate-400 text-sm mb-1">{analysisStage}</p>
+                            <div className="w-48 h-1 bg-white/10 rounded-full mx-auto overflow-hidden mt-4">
+                                <motion.div 
+                                    initial={{ x: "-100%" }} 
+                                    animate={{ x: "0%" }} 
+                                    transition={{ duration: 2.5, ease: "easeInOut" }} 
+                                    className="h-full bg-primary-500" 
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Location Modal */}
             <AnimatePresence>
@@ -247,7 +329,13 @@ export default function DashboardPage() {
                         <div className="flex justify-between items-center mb-4">
                             <p className="text-[15px] font-semibold text-white">Latest Payout</p>
                             {latestPayout && (
-                                <span className="text-[10px] text-primary-400 bg-primary-200/15 px-2.5 py-1 rounded-full font-medium">Processed</span>
+                                <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${
+                                    latestPayout.status === 'REJECTED'
+                                        ? 'text-red-400 bg-red-500/10'
+                                        : 'text-primary-400 bg-primary-200/15'
+                                }`}>
+                                    {latestPayout.status === 'REJECTED' ? 'Rejected' : 'Processed'}
+                                </span>
                             )}
                         </div>
                         {isLoading ? (
@@ -255,8 +343,10 @@ export default function DashboardPage() {
                         ) : latestPayout ? (
                             <div>
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div className="size-10 rounded-xl bg-white/5 bride bride-white/10 flex items-center justify-center text-primary-500 shrink-0">
-                                        <FiCloudRain className="size-4" />
+                                    <div className={`size-10 rounded-xl bg-white/5 bride bride-white/10 flex items-center justify-center shrink-0 ${
+                                        latestPayout.status === 'REJECTED' ? 'text-red-400' : 'text-primary-500'
+                                    }`}>
+                                        {latestPayout.status === 'REJECTED' ? <FiX className="size-4" /> : <FiCloudRain className="size-4" />}
                                     </div>
                                     <div>
                                         <p className="text-[15px] font-medium text-white">{latestPayout.reason}</p>
@@ -265,8 +355,14 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="bg-white/5 bride bride-white/5 rounded-xl px-4 py-3 flex items-center justify-between">
                                     <div>
-                                        <p className="text-[11px] text-slate-500 uppercase tracking-widest mb-0.5">Amount credited</p>
-                                        <p className="text-xl font-bold text-primary-400">+₹{latestPayout.amount.toFixed(2)}</p>
+                                        <p className="text-[11px] text-slate-500 uppercase tracking-widest mb-0.5">
+                                            {latestPayout.status === 'REJECTED' ? 'Claim Status' : 'Amount credited'}
+                                        </p>
+                                        <p className={`text-xl font-bold ${
+                                            latestPayout.status === 'REJECTED' ? 'text-red-400' : 'text-primary-400'
+                                        }`}>
+                                            {latestPayout.status === 'REJECTED' ? '₹0.00' : `+₹${latestPayout.amount.toFixed(2)}`}
+                                        </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Hours covered</p>
@@ -298,24 +394,38 @@ export default function DashboardPage() {
                             </div>
                         ) : payouts.length > 0 ? (
                             <div className="flex flex-col gap-2">
-                                {payouts.slice(0, 4).map((p, i) => (
-                                    <motion.div key={p._id}
-                                        initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: i * 0.06 + 0.3, ...spring }}
-                                        className="flex items-center justify-between px-4 py-2.5 bg-white/5 bride bride-white/5 rounded-xl hover:bg-white/8 hover:bride-white/10 transition-all group cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="size-8 rounded-xl bg-white/5 bride bride-white/10 flex items-center justify-center text-primary-500 group-hover:bg-primary-600/20 group-hover:bride-primary-500/20 transition-colors">
-                                                <FiCloudRain className="size-3.5" />
+                                {payouts.slice(0, 4).map((p, i) => {
+                                    const isRejected = p.status === 'REJECTED';
+                                    return (
+                                        <motion.div key={p._id}
+                                            initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: i * 0.06 + 0.3, ...spring }}
+                                            className="flex items-center justify-between px-4 py-2.5 bg-white/5 bride bride-white/5 rounded-xl hover:bg-white/8 hover:bride-white/10 transition-all group cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`size-8 rounded-xl bg-white/5 bride bride-white/10 flex items-center justify-center group-hover:bg-white/10 transition-colors shrink-0 ${
+                                                    isRejected ? 'text-red-400' : 'text-primary-500'
+                                                }`}>
+                                                    {isRejected ? <FiX className="size-3.5" /> : <FiCloudRain className="size-3.5" />}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-[15px] font-medium text-white leading-tight">{p.reason}</p>
+                                                        {isRejected && (
+                                                            <span className="text-[9px] text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full font-medium">
+                                                                Rejected
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[13px] text-slate-500 mt-0.5">{p.date} · {p.disruptedHours}hrs</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="text-[15px] font-medium text-white leading-tight">{p.reason}</p>
-                                                <p className="text-[13px] text-slate-500">{p.date} · {p.disruptedHours}hrs</p>
-                                            </div>
-                                        </div>
-                                        <span className="text-primary-400 font-semibold text-[15px]">+₹{p.amount.toFixed(2)}</span>
-                                    </motion.div>
-                                ))}
+                                            <span className={`font-semibold text-[15px] ${isRejected ? 'text-slate-500' : 'text-primary-400'}`}>
+                                                {isRejected ? "₹0.00" : `+₹${p.amount.toFixed(2)}`}
+                                            </span>
+                                        </motion.div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="h-24 flex items-center justify-center text-slate-600 text-sm">

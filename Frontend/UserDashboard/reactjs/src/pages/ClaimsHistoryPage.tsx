@@ -42,9 +42,15 @@ export default function ClaimsHistoryPage() {
                 {/* Summary */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
                     {[
-                        { label: "Total Claimed", value: `₹${totalPayout.toFixed(2)}`, icon: <FiZap /> },
+                        { label: "Total Claimed", value: `₹${totalPayout.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, icon: <FiZap /> },
                         { label: "Total Claims", value: payouts.length.toString(), icon: <FiCloudRain /> },
-                        { label: "Success Rate", value: "100%", icon: <FiCheckCircle /> },
+                        { 
+                            label: "Success Rate", 
+                            value: payouts.length > 0 
+                                ? `${Math.round((payouts.filter(p => p.status !== 'REJECTED').length / payouts.length) * 100)}%` 
+                                : "100%", 
+                            icon: <FiCheckCircle /> 
+                        },
                     ].map((stat, i) => (
                         <motion.div key={i}
                             initial={{ y: 30, opacity: 0 }}
@@ -70,7 +76,7 @@ export default function ClaimsHistoryPage() {
                     </div>
 
                     {isLoading ? (
-                        <div className="p-5">Loading...</div>
+                        <div className="p-5 text-slate-400">Loading...</div>
                     ) : payouts.length === 0 ? (
                         <div className="p-5 text-center text-slate-400">
                             <FiAlertCircle className="mx-auto mb-2" />
@@ -78,24 +84,34 @@ export default function ClaimsHistoryPage() {
                         </div>
                     ) : (
                         <div>
-                            {payouts.map((payout) => (
-                                <div key={payout._id}
-                                    className="px-6 py-4 flex justify-between bride-b bride-white/5"
-                                >
-                                    <div>
-                                        <p className="text-white">{payout.reason}</p>
-                                        <p className="text-slate-500 text-sm">{payout.date}</p>
+                            {payouts.map((payout) => {
+                                const isRejected = payout.status === 'REJECTED';
+                                return (
+                                    <div key={payout._id}
+                                        className="px-6 py-4 flex justify-between bride-b bride-white/5 items-center hover:bg-white/2 transition-colors"
+                                    >
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-white font-medium">{payout.reason}</p>
+                                                {isRejected && (
+                                                    <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                        Rejected
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-slate-500 text-sm mt-0.5">{payout.date}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={isRejected ? "text-slate-500 font-semibold" : "text-primary-400 font-semibold"}>
+                                                {isRejected ? "₹0.00" : `+₹${payout.amount.toFixed(2)}`}
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {payout.disruptedHours} hrs covered
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-primary-400">
-                                            +₹{payout.amount.toFixed(2)}
-                                        </p>
-                                        <p className="text-xs text-primary-500">
-                                            {payout.disruptedHours} hrs
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

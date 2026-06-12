@@ -2,21 +2,39 @@ const amqp = require('amqplib');
 
 let connection;
 let channel;
+const onReconnectCallbacks = [];
+
+const registerReconnectCallback = (cb) => {
+  onReconnectCallbacks.push(cb);
+};
 
 const connectRabbitMQ = async () => {
-  const maxRetries = 10;
   let attempt = 0;
 
-  while (attempt < maxRetries) {
+  while (true) {
     try {
-      console.log(`Connecting to RabbitMQ (Attempt ${attempt + 1}/${maxRetries})...`);
+      attempt++;
+      console.log(`Connecting to RabbitMQ (Attempt ${attempt})...`);
       connection = await amqp.connect(process.env.RABBITMQ_URL);
       
       connection.on("error", (err) => {
         console.error("PaymentService RabbitMQ connection error:", err.message);
       });
       connection.on("close", () => {
-        console.log("PaymentService RabbitMQ connection closed.");
+        console.log("PaymentService RabbitMQ connection closed. Reconnecting in 5 seconds...");
+        channel = null;
+        connection = null;
+        setTimeout(async () => {
+          try {
+            await connectRabbitMQ();
+            // Trigger all registered reconnect callbacks (like starting the consumer again)
+            for (const cb of onReconnectCallbacks) {
+              await cb();
+            }
+          } catch (reconnectErr) {
+            console.error("Error during RabbitMQ reconnection callback execution:", reconnectErr.message);
+          }
+        }, 5000);
       });
       
       channel = await connection.createChannel();
@@ -60,15 +78,10 @@ const connectRabbitMQ = async () => {
       return; // Connection successful!
 
     } catch (error) {
-      attempt++;
       console.warn(`⚠️ RabbitMQ connection attempt ${attempt} failed: ${error.message}. Retrying in 3 seconds...`);
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
-
-  throw new Error('Could not establish RabbitMQ channel after retries');
 };
 
 const getChannel = () => {
@@ -109,4 +122,4 @@ const publishEvent = async (routingKey, message) => {
   }
 };
 
-module.exports = { connectRabbitMQ, getChannel, publishEvent };
+module.exports = { connectRabbitMQ, getChannel, publishEvent, registerReconnectCallback };

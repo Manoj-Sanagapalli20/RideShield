@@ -19,11 +19,12 @@ const startDisruptionConsumer = async () => {
       // Save to database
       const payoutEntry = new DisruptionPayout({
         userId: data.userId,
-        email: data.email,
+        email: data.email || 'driver@rideshield.com',
         amount: parseFloat(data.amount),
         disruptedHours: data.disruptedHours,
         date: data.date,
         reason: data.reason,
+        status: data.status || 'PROCESSED',
         timestamp: data.timestamp || new Date()
       });
 

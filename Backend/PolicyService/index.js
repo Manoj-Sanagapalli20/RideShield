@@ -31,12 +31,12 @@ let channel;
 
 const connectRabbitMQ = async () => {
   const amqpServer = process.env.RABBITMQ_URL || "amqp://localhost:5672";
-  const maxRetries = 10;
   let attempt = 0;
 
-  while (attempt < maxRetries) {
+  while (true) {
     try {
-      console.log(`PolicyService connecting to RabbitMQ (Attempt ${attempt + 1}/${maxRetries})...`);
+      attempt++;
+      console.log(`PolicyService connecting to RabbitMQ (Attempt ${attempt})...`);
       const connection = await amqp.connect(amqpServer);
       
       connection.on("error", (err) => {
@@ -45,6 +45,7 @@ const connectRabbitMQ = async () => {
       
       connection.on("close", () => {
         console.log("PolicyService RabbitMQ connection closed. Reconnecting in 5 seconds...");
+        channel = null;
         setTimeout(connectRabbitMQ, 5000);
       });
       
@@ -63,15 +64,10 @@ const connectRabbitMQ = async () => {
       return; // Connection successful!
 
     } catch (error) {
-      attempt++;
       console.warn(`⚠️ PolicyService RabbitMQ connection attempt ${attempt} failed: ${error.message}. Retrying in 3 seconds...`);
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
-
-  console.error('❌ PolicyService failed to connect to RabbitMQ after max retries.');
 };
 
 connectRabbitMQ();
@@ -155,21 +151,25 @@ app.post('/api/policy/select-plan', async (req, res) => {
     };
 
     if (channel) {
-      channel.sendToQueue(
-        'subscription.purchase.queue',
-        Buffer.from(JSON.stringify(event)),
-        { persistent: true }
-      );
+      try {
+        channel.sendToQueue(
+          'subscription.purchase.queue',
+          Buffer.from(JSON.stringify(event)),
+          { persistent: true }
+        );
 
-      console.log(`📡 Event pushed to Payment Queue for user: ${partnerId}`);
+        console.log(`📡 Event pushed to Payment Queue for user: ${partnerId}`);
 
-      res.status(200).json({
-        message: "Plan selected successfully, payment initiated.",
-        eventId: event.eventId
-      });
-
+        res.status(200).json({
+          message: "Plan selected successfully, payment initiated.",
+          eventId: event.eventId
+        });
+      } catch (err) {
+        console.error("Failed to select plan (queue offline/closed):", err.message);
+        res.status(503).json({ message: "Message Queue is offline or channel closed." });
+      }
     } else {
-      res.status(500).json({ message: "Message Queue is unavailable." });
+      res.status(503).json({ message: "Message Queue is unavailable." });
     }
 
   } catch (error) {

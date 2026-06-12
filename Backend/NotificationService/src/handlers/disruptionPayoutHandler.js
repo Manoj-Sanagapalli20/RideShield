@@ -3,6 +3,11 @@ const { sendEmail } = require('../services/emailService');
 const handleDisruptionPayout = async (data) => {
   const { userId, email, amount, disruptedHours, date, reason } = data;
   
+  if (data.status === 'REJECTED') {
+    console.log(`ℹ️ Skipping email notification for REJECTED claim for user ${userId} on ${date}`);
+    return;
+  }
+  
   const subject = `💰 Disruption Payout Triggered - RideShield 🌧️`;
   
   const text = `Hello Driver ${userId},

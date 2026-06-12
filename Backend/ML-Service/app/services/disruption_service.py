@@ -43,7 +43,7 @@ def build_disruption_array(lat: float, lng: float, date: str, pincode: str):
         aqi = aqi_data[hour] if aqi_data and hour < len(aqi_data) and aqi_data[hour] is not None else 100
 
         # 🌧 Rain detection
-        if rain > 0.5:
+        if rain >= 0.5 :
             if current_rain_start is None:
                 current_rain_start = hour
         else:
@@ -54,12 +54,14 @@ def build_disruption_array(lat: float, lng: float, date: str, pincode: str):
                 current_rain_start = None
 
         # 🔥 Heat detection
-        if temp > 45:
+        if temp >= 45.0:
             if current_heat_start is None:
                 current_heat_start = hour
         else:
             if current_heat_start is not None:
-                _add("heat", current_heat_start, hour, level="heavy")
+                peak = max(temp_data[current_heat_start:hour])
+                level = "heavy" if peak >= 48.0 else "medium" if peak >= 46.0 else "light"
+                _add("heat", current_heat_start, hour, level=level)
                 current_heat_start = None
 
         # 💨 Pollution detection
@@ -78,7 +80,9 @@ def build_disruption_array(lat: float, lng: float, date: str, pincode: str):
         _add("rain", current_rain_start, 24, level=level)
 
     if current_heat_start is not None:
-        _add("heat", current_heat_start, 24, level="heavy")
+        peak = max(temp_data[current_heat_start:24])
+        level = "heavy" if peak >= 48.0 else "medium" if peak >= 46.0 else "light"
+        _add("heat", current_heat_start, 24, level=level)
 
     if current_poll_start is not None:
         _add("pollution", current_poll_start, 24, level="heavy")

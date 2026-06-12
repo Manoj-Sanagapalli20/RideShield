@@ -72,7 +72,7 @@ def callback(ch, method, properties, body):
                 ch.queue_declare(queue='ml.disruptions.processed', durable=True)
                 downstream_payload = {
                     "userId": user_id,
-                    "email": data.get("extraData", {}).get("email"),
+                    "email": (data.get("extraData") or {}).get("email"),
                     "results": cached
                 }
                 ch.basic_publish(
@@ -107,7 +107,7 @@ def callback(ch, method, properties, body):
             ch.queue_declare(queue='ml.disruptions.processed', durable=True)
             downstream_payload = {
                 "userId": user_id,
-                "email": data.get("extraData", {}).get("email"),
+                "email": (data.get("extraData") or {}).get("email"),
                 "results": disruptions_data
             }
             ch.basic_publish(
@@ -129,7 +129,6 @@ def start_consuming():
     import time
     url = os.getenv("RABBITMQ_URL", "amqp://localhost:5672")
     parameters = pika.URLParameters(url)
-    
     while True:
         try:
             logger.info("Attempting to connect to RabbitMQ from ML Service...")

@@ -27,12 +27,12 @@ let channel;
 
 const setupRabbitMQ = async () => {
     const url = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
-    const maxRetries = 10;
     let attempt = 0;
 
-    while (attempt < maxRetries) {
+    while (true) {
         try {
-            console.log(`AddressPolling connecting to RabbitMQ (Attempt ${attempt + 1}/${maxRetries})...`);
+            attempt++;
+            console.log(`AddressPolling connecting to RabbitMQ (Attempt ${attempt})...`);
             const conn = await amqp.connect(url);
             
             conn.on("error", (err) => {
@@ -40,6 +40,7 @@ const setupRabbitMQ = async () => {
             });
             conn.on("close", () => {
                 console.log("AddressPolling RabbitMQ connection closed. Reconnecting in 5 seconds...");
+                channel = null;
                 setTimeout(setupRabbitMQ, 5000);
             });
             
@@ -52,14 +53,10 @@ const setupRabbitMQ = async () => {
             console.log('✅ AddressPolling connected to RabbitMQ (CloudAMQP)');
             return;
         } catch (err) {
-            attempt++;
             console.warn(`⚠️ AddressPolling RabbitMQ connection attempt ${attempt} failed: ${err.message}. Retrying in 3 seconds...`);
-            if (attempt < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            }
+            await new Promise(resolve => setTimeout(resolve, 3000));
         }
     }
-    console.error('❌ AddressPolling failed to connect to RabbitMQ after max retries.');
 };
 setupRabbitMQ();
 
@@ -76,16 +73,21 @@ app.post('/api/address/update', (req, res) => {
         lat,
         lng,
         pincode: pincode || "000000",
-        date: req.body.date || "2026-03-18",
+        date: req.body.date || new Date().toISOString().split('T')[0],
         extraData: data || {}
     };
 
     if (channel) {
-        channel.sendToQueue('location.update', Buffer.from(JSON.stringify(payload)), { persistent: true });
-        console.log(`📍 Location queued to ML service for user ${userId}`);
-        res.status(200).json({ success: true, message: "Location updated to ML Queue" });
+        try {
+            channel.sendToQueue('location.update', Buffer.from(JSON.stringify(payload)), { persistent: true });
+            console.log(`📍 Location queued to ML service for user ${userId}`);
+            res.status(200).json({ success: true, message: "Location updated to ML Queue" });
+        } catch (err) {
+            console.error("Failed to send location update to queue:", err.message);
+            res.status(503).json({ error: "Message Queue is offline or channel closed" });
+        }
     } else {
-        res.status(500).json({ error: "Message Queue is offline" });
+        res.status(503).json({ error: "Message Queue is offline" });
     }
 });
 

@@ -10,12 +10,12 @@ const registerReconnectCallback = (cb) => {
 
 const connectRabbitMQ = async () => {
   const rabbitMQUrl = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
-  const maxRetries = 10;
   let attempt = 0;
 
-  while (attempt < maxRetries) {
+  while (true) {
     try {
-      console.log(`NotificationService connecting to RabbitMQ (Attempt ${attempt + 1}/${maxRetries})...`);
+      attempt++;
+      console.log(`NotificationService connecting to RabbitMQ (Attempt ${attempt})...`);
       connection = await amqp.connect(rabbitMQUrl);
       
       connection.on("error", (err) => {
@@ -24,6 +24,8 @@ const connectRabbitMQ = async () => {
       
       connection.on("close", () => {
         console.log("NotificationService RabbitMQ connection closed. Reconnecting in 5 seconds...");
+        channel = null;
+        connection = null;
         setTimeout(async () => {
           try {
             await connectRabbitMQ();
@@ -48,15 +50,10 @@ const connectRabbitMQ = async () => {
       return channel;
 
     } catch (error) {
-      attempt++;
       console.warn(`⚠️ NotificationService RabbitMQ connection attempt ${attempt} failed: ${error.message}. Retrying in 3 seconds...`);
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
-
-  console.error('❌ NotificationService failed to connect to RabbitMQ after max retries.');
 };
 
 const getChannel = () => {

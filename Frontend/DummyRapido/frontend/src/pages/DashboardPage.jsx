@@ -7,7 +7,12 @@ import toast from 'react-hot-toast';
 const DashboardPage = () => {
     const [hourlyData, setHourlyData] = useState([]);
     const [partner, setPartner] = useState(null);
-    const [selectedDate, setSelectedDate] = useState('2026-03-18');
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const d = new Date();
+        const offset = d.getTimezoneOffset();
+        const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString().split("T")[0];
+    });
     const [stats, setStats] = useState({ totalRides: 0, totalEarnings: 0, currentStatus: 'Online' });
     const navigate = useNavigate();
 
