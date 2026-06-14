@@ -16,19 +16,19 @@ const startDisruptionConsumer = async () => {
       const data = JSON.parse(msg.content.toString());
       console.log(`📥 Received disruption payout for storage: User ${data.userId} - ₹${data.amount}`);
 
-      // Save to database
-      const payoutEntry = new DisruptionPayout({
-        userId: data.userId,
-        email: data.email || 'driver@rideshield.com',
-        amount: parseFloat(data.amount),
-        disruptedHours: data.disruptedHours,
-        date: data.date,
-        reason: data.reason,
-        status: data.status || 'PROCESSED',
-        timestamp: data.timestamp || new Date()
-      });
-
-      await payoutEntry.save();
+      // Save or update to database (upsert by userId and date to prevent duplicate records)
+      await DisruptionPayout.findOneAndUpdate(
+        { userId: data.userId, date: data.date },
+        {
+          email: data.email || 'driver@rideshield.com',
+          amount: parseFloat(data.amount),
+          disruptedHours: data.disruptedHours,
+          reason: data.reason,
+          status: data.status || 'PROCESSED',
+          timestamp: data.timestamp || new Date()
+        },
+        { upsert: true, new: true }
+      );
       
       console.log(`✅ Disruption payout record saved for user ${data.userId}. Total Payout: ₹${data.amount}`);
       

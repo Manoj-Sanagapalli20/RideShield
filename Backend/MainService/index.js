@@ -120,8 +120,57 @@ const processCompensation = async (data) => {
     // Merge all possible weather and social strike disruptions
     const allDisruptions = [...(disruptionsByType.weather || []), ...(disruptionsByType.social || [])];
 
+    // Fetch shift activity first to display online slots in all rejections
+    let logData = null;
+    let onlineHoursList = [];
+    try {
+        console.log(`[User: ${userId}] Checking API Rapido logs for shift activity...`);
+        const logRes = await axios.get(`${dummyRapidoUrl}/api/partners/daily-logs/${userId}/${date}`);
+        logData = logRes.data.log;
+        if (logData && logData.hourlyActivity) {
+            logData.hourlyActivity.forEach(activity => {
+                if (activity.isOnline === true) {
+                    let slot = activity.timeSlot || "00:00";
+                    if (!slot.includes("-")) {
+                        const startHr = parseInt(slot.split(':')[0]);
+                        const endHr = startHr + 1;
+                        const formatHr = (h) => `${String(h).padStart(2, '0')}:00`;
+                        slot = `${formatHr(startHr)}-${formatHr(endHr)}`;
+                    }
+
+                    // Check if date is today and if slot hour is in the future (in IST timezone)
+                    const startPart = slot.split('-')[0].trim();
+                    let slotHour = parseInt(startPart.split(':')[0]);
+                    if (startPart.toLowerCase().includes('pm') && slotHour < 12) {
+                        slotHour += 12;
+                    } else if (startPart.toLowerCase().includes('am') && slotHour === 12) {
+                        slotHour = 0;
+                    }
+
+                    const istOffset = 5.5 * 60 * 60 * 1000;
+                    const istTime = new Date(Date.now() + istOffset);
+                    const istDateStr = istTime.toISOString().split('T')[0];
+                    const currentIstHour = istTime.getUTCHours();
+
+                    if (date === istDateStr && slotHour > currentIstHour) {
+                        return; // Skip future shift hour
+                    }
+
+                    onlineHoursList.push(slot);
+                }
+            });
+        }
+    } catch (err) {
+        console.error(`Failed to pull API DummyRapido data for user ${userId}:`, err.message);
+    }
+
+    const shiftStr = onlineHoursList.length > 0 ? onlineHoursList.join(', ') : '';
+
     if (allDisruptions.length === 0) {
         console.log(`[User: ${userId}] [NO DATA FOUND] Location clear for ${date}. No disruption events detected by ML.`);
+        const reasonStr = shiftStr 
+            ? `Rejected: Clear weather and no strike disruptions officially detected. (Shift: ${shiftStr})`
+            : `Rejected: Clear weather and no strike disruptions officially detected. (Driver Offline)`;
         const rejectEvent = {
             userId,
             email: driverEmail || 'driver@rideshield.com',
@@ -129,7 +178,23 @@ const processCompensation = async (data) => {
             disruptedHours: 0,
             date,
             status: 'REJECTED',
-            reason: 'Rejected: Clear weather and no strike disruptions officially detected.',
+            reason: reasonStr,
+            timestamp: new Date().toISOString()
+        };
+        publishToPaymentQueue(rejectEvent);
+        return;
+    }
+
+    if (!logData || !logData.hourlyActivity || onlineHoursList.length === 0) {
+        console.log(`[User: ${userId}] Rapido returned zero hours logged. No payout required.`);
+        const rejectEvent = {
+            userId,
+            email: driverEmail || 'driver@rideshield.com',
+            amount: "0.00",
+            disruptedHours: 0,
+            date,
+            status: 'REJECTED',
+            reason: 'Rejected: Driver was offline / did not log shift activity for the day.',
             timestamp: new Date().toISOString()
         };
         publishToPaymentQueue(rejectEvent);
@@ -138,26 +203,6 @@ const processCompensation = async (data) => {
 
     try {
         console.log(`[User: ${userId}] ML Model flagged ${allDisruptions.length} disruption event(s)! Checking API Rapido logs...`);
-
-        // Securely fetch DummyRapido hourly activity for cross validation
-        const logRes = await axios.get(`${dummyRapidoUrl}/api/partners/daily-logs/${userId}/${date}`);
-        const logData = logRes.data.log;
-
-        if (!logData || !logData.hourlyActivity || logData.hourlyActivity.length === 0) {
-            console.log(`[User: ${userId}] Rapido returned zero hours logged. No payout required.`);
-            const rejectEvent = {
-                userId,
-                email: driverEmail || 'driver@rideshield.com',
-                amount: "0.00",
-                disruptedHours: 0,
-                date,
-                status: 'REJECTED',
-                reason: 'Rejected: Driver was offline / did not log shift activity during the disruption window.',
-                timestamp: new Date().toISOString()
-            };
-            publishToPaymentQueue(rejectEvent);
-            return;
-        }
 
         // Build a Set of disrupted hours to avoid double-counting overlapping events
         const disruptedHoursSet = new Set();
@@ -186,6 +231,16 @@ const processCompensation = async (data) => {
                     actHour = 0;
                 }
 
+                // Check future hour in IST
+                const istOffset = 5.5 * 60 * 60 * 1000;
+                const istTime = new Date(Date.now() + istOffset);
+                const istDateStr = istTime.toISOString().split('T')[0];
+                const currentIstHour = istTime.getUTCHours();
+
+                if (date === istDateStr && actHour > currentIstHour) {
+                    return; // Skip future hour
+                }
+
                 if (disruptedHoursSet.has(actHour)) {
                     const rides = activity.ridesAccepted !== undefined ? activity.ridesAccepted : 0;
                     if (rides === 0) {
@@ -198,7 +253,7 @@ const processCompensation = async (data) => {
         });
 
         const disruptedHours = trigger1Hours + trigger2Hours;
-        const totalLoginHours = logData.hourlyActivity.filter(a => a.isOnline === true).length;
+        const totalLoginHours = onlineHoursList.length;
 
         if (disruptedHours > 0) {
             // Formula specified precisely: Payout = (Daily Wage ÷ Login Hours) × Total Disrupted Hours
@@ -235,6 +290,48 @@ const processCompensation = async (data) => {
 
         } else {
             console.log(`[User: ${userId}] Driver was active but had normal ride counts, or was completely offline during the rain/strike window.`);
+            
+            // Format the disruptions string
+            const disruptionStr = allDisruptions
+                .map(d => `${d.type.charAt(0).toUpperCase() + d.type.slice(1)}: ${d.time}`)
+                .join(', ');
+
+            // Check overlap
+            let hasShiftOverlap = false;
+            logData.hourlyActivity.forEach(activity => {
+                if (activity.isOnline === true) {
+                    const timeSlot = activity.timeSlot || "00:00";
+                    const startPart = timeSlot.split('-')[0].trim();
+                    let actHour = parseInt(startPart.split(':')[0]);
+                    if (startPart.toLowerCase().includes('pm') && actHour < 12) {
+                        actHour += 12;
+                    } else if (startPart.toLowerCase().includes('am') && actHour === 12) {
+                        actHour = 0;
+                    }
+
+                    // Check future hour in IST
+                    const istOffset = 5.5 * 60 * 60 * 1000;
+                    const istTime = new Date(Date.now() + istOffset);
+                    const istDateStr = istTime.toISOString().split('T')[0];
+                    const currentIstHour = istTime.getUTCHours();
+
+                    if (date === istDateStr && actHour > currentIstHour) {
+                        return; // Skip future hour
+                    }
+
+                    if (disruptedHoursSet.has(actHour)) {
+                        hasShiftOverlap = true;
+                    }
+                }
+            });
+
+            let rejectReason = '';
+            if (!hasShiftOverlap) {
+                rejectReason = `Rejected: Driver was offline / did not log shift activity during the disruption window. (Shift: ${shiftStr}, Disruption: ${disruptionStr})`;
+            } else {
+                rejectReason = `Rejected: Normal ride count (rides > 1) accepted during disruption window. (Shift: ${shiftStr}, Disruption: ${disruptionStr})`;
+            }
+
             const rejectEvent = {
                 userId,
                 email: driverEmail || 'driver@rideshield.com',
@@ -242,14 +339,14 @@ const processCompensation = async (data) => {
                 disruptedHours: 0,
                 date,
                 status: 'REJECTED',
-                reason: 'Rejected: Normal ride count (rides > 1) accepted during disruption window.',
+                reason: rejectReason,
                 timestamp: new Date().toISOString()
             };
             publishToPaymentQueue(rejectEvent);
         }
 
     } catch (err) {
-        console.error(`Failed to pull API DummyRapido data for user ${userId}:`, err.message);
+        console.error(`Failed to complete compensation checks for user ${userId}:`, err.message);
     }
 };
 

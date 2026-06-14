@@ -139,9 +139,10 @@ def get_hourly_weather(lat: float, lng: float, date: str):
                                     if t_str and vals:
                                         t_date, t_hour = get_local_hour_and_date(t_str, utc_offset)
                                         if t_date == date and t_hour is not None:
+                                            p_val = vals.get("rainIntensity") if vals.get("rainIntensity") is not None else vals.get("precipitationIntensity")
                                             tomorrow_data[t_hour] = {
                                                 "temperature": vals.get("temperature"),
-                                                "precipitation": vals.get("precipitationIntensity")
+                                                "precipitation": p_val
                                             }
 
                     # Parse Format B (timelines -> hourly)
@@ -154,9 +155,10 @@ def get_hourly_weather(lat: float, lng: float, date: str):
                                 if t_str and vals:
                                     t_date, t_hour = get_local_hour_and_date(t_str, utc_offset)
                                     if t_date == date and t_hour is not None:
+                                        p_val = vals.get("rainIntensity") if vals.get("rainIntensity") is not None else vals.get("precipitationIntensity")
                                         tomorrow_data[t_hour] = {
                                             "temperature": vals.get("temperature"),
-                                            "precipitation": vals.get("precipitationIntensity")
+                                            "precipitation": p_val
                                         }
                     logger.info(f"[WeatherService] Successfully fetched and parsed Tomorrow.io data for {len(tomorrow_data)} hour(s)")
                 else:
