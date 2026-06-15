@@ -3,7 +3,7 @@ import type { TestimonialCardProps } from "../types";
 
 export default function TestimonialCard({ testimonial, index }: TestimonialCardProps) {
     return (
-        <motion.div className="p-4 rounded-lg mx-4 w-72 shrink-0 bg-primary-950/30 bride bride-primary-950"
+        <motion.div className="p-4 rounded-lg mx-4 w-72 shrink-0 bg-primary-950/30 border border-primary-950"
             initial={{ y: 150, opacity: 0 }}
             whileInView={{ y: 0, opacity: 1 }}
             viewport={{ once: true }}

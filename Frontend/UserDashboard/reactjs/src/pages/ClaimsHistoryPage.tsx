@@ -56,7 +56,7 @@ export default function ClaimsHistoryPage() {
                             initial={{ y: 30, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: i * 0.08, ...spring }}
-                            className="bg-white/5 bride bride-white/10 rounded-2xl p-4"
+                            className="bg-white/5 border border-white/10 rounded-2xl p-4"
                         >
                             <p className="text-xs text-slate-500 mb-1">{stat.label}</p>
                             <p className="text-xl font-semibold text-white">
@@ -67,8 +67,8 @@ export default function ClaimsHistoryPage() {
                 </div>
 
                 {/* Table */}
-                <div className="bg-white/5 bride bride-white/10 rounded-2xl overflow-hidden">
-                    <div className="px-6 py-4 bride-b bride-white/5 flex justify-between">
+                <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-white/5 flex justify-between">
                         <h2 className="font-semibold text-white">Payout Records</h2>
                         <button className="text-xs flex items-center gap-1">
                             <FiDownload /> Export
@@ -88,7 +88,7 @@ export default function ClaimsHistoryPage() {
                                 const isRejected = payout.status === 'REJECTED';
                                 return (
                                     <div key={payout._id}
-                                        className="px-6 py-4 flex justify-between bride-b bride-white/5 items-center hover:bg-white/2 transition-colors"
+                                        className="px-6 py-4 flex justify-between border-b border-white/5 items-center hover:bg-white/2 transition-colors"
                                     >
                                         <div>
                                             <div className="flex items-center gap-2">

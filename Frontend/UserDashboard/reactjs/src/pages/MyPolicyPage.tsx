@@ -42,12 +42,12 @@ export default function MyPolicyPage() {
 
                 {/* Hero */}
                 <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={spring}
-                    className="bg-white/5 bride bride-white/10 rounded-2xl p-6 md:p-8 mb-5 relative overflow-hidden z-10">
+                    className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 mb-5 relative overflow-hidden z-10">
                     <div className="absolute -top-16 -right-16 size-48 bg-primary-600 blur-[80px] opacity-20 pointer-events-none" />
                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                         <div>
                             <div className="flex items-center gap-2 mb-4">
-                                <div className="size-10 rounded-xl bg-white/5 bride bride-white/10 flex items-center justify-center text-primary-500">
+                                <div className="size-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-primary-500">
                                     <FiShield className="size-5" />
                                 </div>
                                 <span className="text-[10px] font-medium text-primary-400 bg-primary-200/15 px-2.5 py-1 rounded-full">
@@ -66,10 +66,10 @@ export default function MyPolicyPage() {
                                 <p className="text-3xl font-bold text-white">₹{policy?.dailyWage || 600}</p>
                             </div>
                             <div className="flex gap-2 justify-end">
-                                <button className="text-[11px] font-medium text-slate-400 hover:text-white bg-white/5 bride bride-white/10 px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all hover:bg-white/8">
+                                <button className="text-[11px] font-medium text-slate-400 hover:text-white bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all hover:bg-white/8">
                                     <FiDownload className="size-3.5" /> Certificate
                                 </button>
-                                <Link to="/claims" className="text-[11px] font-medium text-primary-400 bg-primary-200/15 bride bride-primary-500/20 px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all hover:bg-primary-200/20">
+                                <Link to="/claims" className="text-[11px] font-medium text-primary-400 bg-primary-200/15 border border-primary-500/20 px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all hover:bg-primary-200/20">
                                     Claims <FiArrowUpRight className="size-3.5" />
                                 </Link>
                             </div>
@@ -79,16 +79,16 @@ export default function MyPolicyPage() {
 
                 {/* Coverage Features */}
                 <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1, ...spring }}
-                    className="bg-white/5 bride bride-white/10 rounded-2xl p-6 mb-5 relative z-10">
+                    className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-5 relative z-10">
                     <h3 className="font-semibold text-white text-base tracking-tight mb-5">Coverage Features</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {FEATURES.map((f, i) => (
                             <motion.div key={i}
                                 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: i * 0.08 + 0.2, ...spring }}
-                                className="flex items-start gap-4 bg-white/5 bride bride-white/5 rounded-xl p-4 hover:bg-white/8 hover:bride-white/10 transition-all group"
+                                className="flex items-start gap-4 bg-white/5 border border-white/5 rounded-xl p-4 hover:bg-white/8 hover:border-white/10 transition-all group"
                             >
-                                <div className="size-9 rounded-xl bg-white/5 bride bride-white/10 flex items-center justify-center text-primary-500 shrink-0 group-hover:bg-primary-600/20 group-hover:bride-primary-500/20 transition-colors">
+                                <div className="size-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-primary-500 shrink-0 group-hover:bg-primary-600/20 group-hover:border-primary-500/20 transition-colors">
                                     <span className="size-4">{f.icon}</span>
                                 </div>
                                 <div className="flex-1">
@@ -105,11 +105,11 @@ export default function MyPolicyPage() {
 
                 {/* How it works */}
                 <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, ...spring }}
-                    className="bg-white/5 bride bride-white/10 rounded-2xl p-6 relative z-10">
+                    className="bg-white/5 border border-white/10 rounded-2xl p-6 relative z-10">
                     <h3 className="font-semibold text-white text-base tracking-tight mb-5">How Parametric Payout Works</h3>
                     <div className="flex flex-col md:flex-row gap-3">
                         {HOW_IT_WORKS.map((step, i) => (
-                            <div key={i} className="flex-1 bg-white/5 bride bride-white/5 rounded-xl p-4 hover:bg-white/8 hover:bride-white/10 transition-all group">
+                            <div key={i} className="flex-1 bg-white/5 border border-white/5 rounded-xl p-4 hover:bg-white/8 hover:border-white/10 transition-all group">
                                 <div className="flex items-center gap-2 mb-3">
                                     <span className="text-[10px] font-medium text-primary-400 bg-primary-200/15 px-2 py-0.5 rounded-full">{step.step}</span>
                                     <span className="size-4 text-primary-500">{step.icon}</span>

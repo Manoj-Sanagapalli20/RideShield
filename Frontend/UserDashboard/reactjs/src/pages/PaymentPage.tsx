@@ -86,10 +86,10 @@ export default function PaymentPage() {
                     <span>Back to Plans</span>
                 </Link>
 
-                <div className="bg-[#1C1C1E] bride bride-white/10 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
+                <div className="bg-[#1C1C1E] border border-white/10 shadow-2xl rounded-2xl overflow-hidden flex flex-col">
                     {/* Header simulating Stripe Checkout */}
-                    <div className="p-6 bride-b bride-white/5 flex gap-4 items-center">
-                        <div className="size-12 rounded-full bride bride-white/10 bg-white/5 flex justify-center items-center font-bold text-white shadow-inner">
+                    <div className="p-6 border-b border-white/5 flex gap-4 items-center">
+                        <div className="size-12 rounded-full border border-white/10 bg-white/5 flex justify-center items-center font-bold text-white shadow-inner">
                             NP
                         </div>
                         <div className="flex flex-col">
@@ -100,7 +100,7 @@ export default function PaymentPage() {
 
                     <div className="p-6 pb-4">
                         <p className="text-slate-400 text-sm font-medium mb-4">Select Payment Method</p>
-                        <div className="flex rounded-lg bg-black/40 p-1 mb-6 bride bride-white/5">
+                        <div className="flex rounded-lg bg-black/40 p-1 mb-6 border border-white/5">
                             <button
                                 type="button"
                                 onClick={() => setMethod("card")}
@@ -121,20 +121,20 @@ export default function PaymentPage() {
                             {method === "card" && (
                                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
                                     <div className="space-y-1">
-                                        <div className="relative flex items-center bg-[#2C2C2E] bride bride-transparent focus-within:bride-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all">
+                                        <div className="relative flex items-center bg-[#2C2C2E] border border-transparent focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all">
                                             <div className="pl-3 pr-2 text-slate-400">💳</div>
                                             <input type="text" placeholder="Card number" className="w-full bg-transparent text-white py-3 pr-3 text-sm outline-none placeholder:text-slate-500" required />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="relative flex items-center bg-[#2C2C2E] bride bride-transparent focus-within:bride-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all">
+                                        <div className="relative flex items-center bg-[#2C2C2E] border border-transparent focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all">
                                             <input type="text" placeholder="MM / YY" className="w-full bg-transparent text-white py-3 px-3 text-sm outline-none placeholder:text-slate-500" required />
                                         </div>
-                                        <div className="relative flex items-center bg-[#2C2C2E] bride bride-transparent focus-within:bride-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all">
+                                        <div className="relative flex items-center bg-[#2C2C2E] border border-transparent focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all">
                                             <input type="text" placeholder="CVC" className="w-full bg-transparent text-white py-3 px-3 text-sm outline-none placeholder:text-slate-500" required />
                                         </div>
                                     </div>
-                                    <div className="relative flex items-center bg-[#2C2C2E] bride bride-transparent focus-within:bride-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all">
+                                    <div className="relative flex items-center bg-[#2C2C2E] border border-transparent focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all">
                                         <input type="text" placeholder="Name on card" className="w-full bg-transparent text-white py-3 px-3 text-sm outline-none placeholder:text-slate-500" />
                                     </div>
                                 </motion.div>
@@ -142,7 +142,7 @@ export default function PaymentPage() {
 
                             {method === "upi" && (
                                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                                    <div className="relative flex items-center bg-[#2C2C2E] bride bride-transparent focus-within:bride-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all mt-2">
+                                    <div className="relative flex items-center bg-[#2C2C2E] border border-transparent focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 rounded-lg overflow-hidden transition-all mt-2">
                                         <div className="pl-3 pr-2 text-slate-400">
                                             <Smartphone size={16} />
                                         </div>
@@ -168,7 +168,7 @@ export default function PaymentPage() {
                         </form>
                     </div>
 
-                    <div className="bg-[#141415] p-4 flex items-center justify-center gap-2 bride-t bride-white/5">
+                    <div className="bg-[#141415] p-4 flex items-center justify-center gap-2 border-t border-white/5">
                         <Lock size={12} className="text-slate-500" />
                         <span className="text-[11px] text-slate-500 font-medium tracking-wide">Payments are secured and encrypted by Stripe Setup</span>
                     </div>

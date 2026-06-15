@@ -96,10 +96,10 @@ export default function LoginPage() {
                 transition={{ delay: 0.2 }}
                 className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10"
             >
-                <div className="bg-white/[0.03] bride bride-white/10 py-8 px-4 shadow-2xl sm:rounded-2xl sm:px-10 backdrop-blur-xl">
+                <div className="bg-white/[0.03] border border-white/10 py-8 px-4 shadow-2xl sm:rounded-2xl sm:px-10 backdrop-blur-xl">
                     <form className="space-y-6" onSubmit={handleLogin}>
                         {error && (
-                            <div className="p-3 rounded-lg bg-red-500/10 bride bride-red-500/50 text-red-400 text-sm text-center">
+                            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/50 text-red-400 text-sm text-center">
                                 {error}
                             </div>
                         )}
@@ -118,7 +118,7 @@ export default function LoginPage() {
                                     autoComplete="off"
                                     required
                                     placeholder="847291"
-                                    className="block w-full appearance-none rounded-xl bride bride-white/10 bg-white/5 pl-11 px-3 py-3 text-white placeholder-slate-600 focus:bride-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:text-sm transition-colors"
+                                    className="block w-full appearance-none rounded-xl border border-white/10 bg-white/5 pl-11 px-3 py-3 text-white placeholder-slate-600 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:text-sm transition-colors"
                                 />
                             </div>
                         </div>
@@ -127,7 +127,7 @@ export default function LoginPage() {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className={`group flex w-full justify-center items-center gap-2 rounded-xl bride bride-transparent bg-primary-600 py-3.5 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-black transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'}`}
+                                className={`group flex w-full justify-center items-center gap-2 rounded-xl border border-transparent bg-primary-600 py-3.5 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-black transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'}`}
                             >
                                 {isLoading ? "Verifying..." : "Verify & Connect"}
                                 {!isLoading && <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />}
@@ -135,7 +135,7 @@ export default function LoginPage() {
                         </div>
                     </form>
 
-                    <div className="mt-8 bride-t bride-white/10 pt-6">
+                    <div className="mt-8 border-t border-white/10 pt-6">
                         <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
                             <ShieldCheck size={16} className="text-primary-500" />
                             <span>Your data is securely encrypted at rest.</span>

@@ -48,7 +48,7 @@ export default function HowItWorksSection() {
                         viewport={{ once: true }}
                         transition={{ delay: index * 0.15, type: "spring", stiffness: 320, damping: 70 }}
                     >
-                        <div className="w-24 h-24 bg-black bride bride-primary-500/20 rounded-2xl mb-8 flex flex-col items-center justify-center shadow-[0_0_40px_rgba(var(--color-primary-500),0.1)] relative z-10">
+                        <div className="w-24 h-24 bg-black border border-primary-500/20 rounded-2xl mb-8 flex flex-col items-center justify-center shadow-[0_0_40px_rgba(var(--color-primary-500),0.1)] relative z-10">
                             <span className="text-xl leading-none font-bold text-primary-500 mb-1">{step.number}</span>
                             <span className="text-3xl leading-none">{step.icon}</span>
                         </div>
@@ -56,7 +56,7 @@ export default function HowItWorksSection() {
                         <p className="text-slate-300 text-base mb-8 leading-relaxed max-w-sm">
                             {step.description}
                         </p>
-                        <div className="mt-auto bg-primary-950/30 bride bride-primary-900/30 rounded-xl p-5 text-sm text-primary-100/70 text-left w-full relative">
+                        <div className="mt-auto bg-primary-950/30 border border-primary-900/30 rounded-xl p-5 text-sm text-primary-100/70 text-left w-full relative">
                             {step.why}
                             <div className="absolute top-0 left-0 w-1 h-full bg-primary-600 rounded-l-xl"></div>
                         </div>

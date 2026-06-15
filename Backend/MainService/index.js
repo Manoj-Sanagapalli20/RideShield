@@ -47,6 +47,12 @@ const connectQueue = async () => {
             channel.on("error", (err) => {
                 console.error("MainService RabbitMQ channel error:", err.message);
             });
+            channel.on("close", () => {
+                console.log("MainService RabbitMQ channel closed. Closing connection to trigger reconnect...");
+                if (conn) {
+                    conn.close().catch(() => {});
+                }
+            });
 
             await channel.assertQueue('ml.disruptions.processed', { durable: true });
 
@@ -117,16 +123,54 @@ const processCompensation = async (data) => {
         }
     }
 
+    const policyServiceUrl = process.env.POLICY_SERVICE_URL || 'http://localhost:5002';
+    let dailyWage = 600; // Default fallback wage if service is down
+    let hasActivePolicy = true;
+
+    try {
+        console.log(`[User: ${userId}] Querying PolicyService for active plan...`);
+        const policyRes = await axios.get(`${policyServiceUrl}/api/policy/user/${userId}`);
+        if (policyRes.data && policyRes.data.dailyWage) {
+            dailyWage = policyRes.data.dailyWage;
+            console.log(`[User: ${userId}] Active policy found: Plan ${policyRes.data.planName}, Daily Wage Protected: ₹${dailyWage}`);
+        }
+    } catch (policyErr) {
+        if (policyErr.response && policyErr.response.status === 404) {
+            console.log(`[User: ${userId}] No active policy found in PolicyService.`);
+            hasActivePolicy = false;
+        } else {
+            console.warn(`[User: ${userId}] PolicyService call failed: ${policyErr.message}. Falling back to standard wage ₹600.`);
+        }
+    }
+
+    if (!hasActivePolicy) {
+        console.log(`[User: ${userId}] Claim rejected: No active insurance policy.`);
+        const rejectEvent = {
+            userId,
+            email: driverEmail || 'driver@rideshield.com',
+            amount: "0.00",
+            disruptedHours: 0,
+            date,
+            status: 'REJECTED',
+            reason: 'Rejected: No active RideShield policy found for this driver.',
+            timestamp: new Date().toISOString()
+        };
+        publishToPaymentQueue(rejectEvent);
+        return;
+    }
+
     // Merge all possible weather and social strike disruptions
     const allDisruptions = [...(disruptionsByType.weather || []), ...(disruptionsByType.social || [])];
 
     // Fetch shift activity first to display online slots in all rejections
     let logData = null;
     let onlineHoursList = [];
+    let logPullSuccess = false;
     try {
         console.log(`[User: ${userId}] Checking API Rapido logs for shift activity...`);
         const logRes = await axios.get(`${dummyRapidoUrl}/api/partners/daily-logs/${userId}/${date}`);
         logData = logRes.data.log;
+        logPullSuccess = true;
         if (logData && logData.hourlyActivity) {
             logData.hourlyActivity.forEach(activity => {
                 if (activity.isOnline === true) {
@@ -165,6 +209,11 @@ const processCompensation = async (data) => {
     }
 
     const shiftStr = onlineHoursList.length > 0 ? onlineHoursList.join(', ') : '';
+
+    if (!logPullSuccess) {
+        console.error(`[User: ${userId}] Skipping compensation check due to Rapido log pull failure.`);
+        return;
+    }
 
     if (allDisruptions.length === 0) {
         console.log(`[User: ${userId}] [NO DATA FOUND] Location clear for ${date}. No disruption events detected by ML.`);
@@ -257,9 +306,8 @@ const processCompensation = async (data) => {
 
         if (disruptedHours > 0) {
             // Formula specified precisely: Payout = (Daily Wage ÷ Login Hours) × Total Disrupted Hours
-            const simulatedDailyWage = 600; // Mocked Hackathon flat wage baseline average
             const effectiveHours = totalLoginHours > 0 ? totalLoginHours : 1;
-            const payout = (simulatedDailyWage / effectiveHours) * disruptedHours;
+            const payout = (dailyWage / effectiveHours) * disruptedHours;
 
             console.log(`\n=============================================================`);
             console.log(`💸 INSURANCE CLAIM PAYOUT VERIFIED & TRIGGERED! (Rapido Network)`);

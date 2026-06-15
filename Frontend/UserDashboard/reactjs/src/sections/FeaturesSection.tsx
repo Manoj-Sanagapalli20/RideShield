@@ -23,7 +23,7 @@ export default function FeaturesSection() {
                         transition={{ delay: index * 0.1, duration: 0.5, ease: "easeOut" }}
                     >
                         <div className="flex-shrink-0 mt-1">
-                            <div className="size-14 rounded-xl bg-white/5 bride bride-white/10 flex items-center justify-center text-primary-500 group-hover:bg-primary-500/10 group-hover:bride-primary-500/20 transition-colors duration-300 shadow-sm">
+                            <div className="size-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-primary-500 group-hover:bg-primary-500/10 group-hover:border-primary-500/20 transition-colors duration-300 shadow-sm">
                                 {feature.icon}
                             </div>
                         </div>

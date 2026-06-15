@@ -43,6 +43,12 @@ const connectRabbitMQ = async () => {
       channel.on("error", (err) => {
         console.error("NotificationService RabbitMQ channel error:", err.message);
       });
+      channel.on("close", () => {
+        console.log("NotificationService RabbitMQ channel closed. Closing connection to trigger reconnect...");
+        if (connection) {
+          connection.close().catch(() => {});
+        }
+      });
 
       // Assert exactly what we need
       await channel.assertExchange('notification_exchange', 'topic', { durable: true });

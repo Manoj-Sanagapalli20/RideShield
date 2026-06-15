@@ -48,6 +48,12 @@ const setupRabbitMQ = async () => {
             channel.on("error", (err) => {
                 console.error("AddressPolling RabbitMQ channel error:", err.message);
             });
+            channel.on("close", () => {
+                console.log("AddressPolling RabbitMQ channel closed. Closing connection to trigger reconnect...");
+                if (conn) {
+                    conn.close().catch(() => {});
+                }
+            });
             
             await channel.assertQueue('location.update', { durable: true });
             console.log('✅ AddressPolling connected to RabbitMQ (CloudAMQP)');

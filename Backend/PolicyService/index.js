@@ -53,6 +53,12 @@ const connectRabbitMQ = async () => {
       channel.on("error", (err) => {
         console.error("PolicyService RabbitMQ channel error:", err.message);
       });
+      channel.on("close", () => {
+        console.log("PolicyService RabbitMQ channel closed. Closing connection to trigger reconnect...");
+        if (connection) {
+          connection.close().catch(() => {});
+        }
+      });
       
       await channel.assertQueue('subscription.purchase.queue', {
         durable: true,
@@ -116,6 +122,7 @@ app.get('/api/policy/user/:userId', async (req, res) => {
       'Basic': 400,
       'Standard': 600,
       'Pro Shield': 800,
+      'Pro': 800,
       'Premium': 1000
     };
 

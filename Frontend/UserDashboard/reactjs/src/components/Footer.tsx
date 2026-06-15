@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 export default function Footer() {
     return (
-        <footer className="flex flex-wrap justify-center md:justify-between overflow-hidden gap-10 md:gap-20 mt-20 md:mt-40 py-12 px-6 md:px-16 lg:px-24 xl:px-32 text-[13px] text-gray-500 bride-t bride-white/5 bg-black/20">
+        <footer className="flex flex-wrap justify-center md:justify-between overflow-hidden gap-10 md:gap-20 mt-20 md:mt-40 py-12 px-6 md:px-16 lg:px-24 xl:px-32 text-[13px] text-gray-500 border-t border-white/5 bg-black/20">
             <motion.div className="flex flex-wrap items-start justify-center md:justify-start gap-10 md:gap-32"
                 initial={{ x: -150, opacity: 0 }}
                 whileInView={{ x: 0, opacity: 1 }}
@@ -44,16 +44,16 @@ export default function Footer() {
                 transition={{ type: "spring", stiffness: 280, damping: 70, mass: 1 }}
             >
                 <div className="flex items-center gap-4">
-                    <a href="#" target="_blank" rel="noreferrer" className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary-500/10 hover:text-primary-500 transition-all bride bride-white/5">
+                    <a href="#" target="_blank" rel="noreferrer" className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary-500/10 hover:text-primary-500 transition-all border border-white/5">
                         <TwitterIcon className="size-4" />
                     </a>
-                    <a href="#" target="_blank" rel="noreferrer" className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary-500/10 hover:text-primary-500 transition-all bride bride-white/5">
+                    <a href="#" target="_blank" rel="noreferrer" className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary-500/10 hover:text-primary-500 transition-all border border-white/5">
                         <LinkedinIcon className="size-4" />
                     </a>
-                    <a href="#" target="_blank" rel="noreferrer" className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary-500/10 hover:text-primary-500 transition-all bride bride-white/5">
+                    <a href="#" target="_blank" rel="noreferrer" className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary-500/10 hover:text-primary-500 transition-all border border-white/5">
                         <DribbbleIcon className="size-4" />
                     </a>
-                    <a href="#" target="_blank" rel="noreferrer" className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary-500/10 hover:text-primary-500 transition-all bride bride-white/5">
+                    <a href="#" target="_blank" rel="noreferrer" className="size-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-primary-500/10 hover:text-primary-500 transition-all border border-white/5">
                         <YoutubeIcon className="size-5" />
                     </a>
                 </div>

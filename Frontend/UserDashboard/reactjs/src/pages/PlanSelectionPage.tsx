@@ -62,10 +62,10 @@ export default function PlanSelectionPage() {
                             <motion.div 
                                 key={index} 
                                 onClick={() => setSelectedPlan(index)}
-                                className={`flex flex-col relative p-8 rounded-3xl bride-2 transition-all duration-300 cursor-pointer overflow-hidden ${
+                                className={`flex flex-col relative p-8 rounded-3xl border-2 transition-all duration-300 cursor-pointer overflow-hidden ${
                                     isSelected 
-                                        ? 'bride-primary-500 bg-primary-950/20 scale-[1.02] shadow-[0_0_40px_rgba(var(--color-primary-500),0.15)]' 
-                                        : 'bride-white/10 bg-white/[0.02] hover:bride-white/30'
+                                        ? 'border-primary-500 bg-primary-950/20 scale-[1.02] shadow-[0_0_40px_rgba(var(--color-primary-500),0.15)]' 
+                                        : 'border-white/10 bg-white/[0.02] hover:border-white/30'
                                 }`}
                                 initial={{ y: 30, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
@@ -76,7 +76,7 @@ export default function PlanSelectionPage() {
                                     {isSelected ? (
                                         <CheckCircle2 className="size-6 text-primary-500" />
                                     ) : (
-                                        <div className="size-6 rounded-full bride-2 bride-slate-600"></div>
+                                        <div className="size-6 rounded-full border-2 border-slate-600"></div>
                                     )}
                                 </div>
 
@@ -85,7 +85,7 @@ export default function PlanSelectionPage() {
                                     <p className="text-slate-400 text-sm">Best for {plan.name.toLowerCase()} coverage requirements.</p>
                                 </div>
                                 
-                                <div className="mb-8 bride-b bride-white/10 pb-8">
+                                <div className="mb-8 border-b border-white/10 pb-8">
                                     <span className="text-4xl font-bold text-white">₹{plan.price}</span>
                                     <span className="text-slate-500 font-medium tracking-wide"> / {plan.period}</span>
                                 </div>
@@ -132,9 +132,9 @@ export default function PlanSelectionPage() {
                             initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-slate-900 bride bride-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
+                            className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl"
                         >
-                            <div className="p-8 bride-b bride-white/10">
+                            <div className="p-8 border-b border-white/10">
                                 <div className="flex items-center gap-3 mb-4">
                                     <ShieldAlert className="text-primary-500" size={24} />
                                     <h2 className="text-2xl font-bold text-white">Terms & Conditions</h2>
@@ -148,14 +148,14 @@ export default function PlanSelectionPage() {
                                 <p>3. <strong className="text-white">Active Status Requirement:</strong> Coverage is only valid when your Rapido Delivery ID is actively tracking shifts. Inactive driving weeks will automatically pause coverage and billing.</p>
                             </div>
 
-                            <div className="p-8 bride-t bride-white/10 bg-slate-900">
+                            <div className="p-8 border-t border-white/10 bg-slate-900">
                                 <label className="flex items-start gap-4 mb-6 cursor-pointer group">
                                     <div className="relative flex items-center shrink-0 mt-0.5">
                                         <input 
                                             type="checkbox" 
                                             checked={termsAccepted}
                                             onChange={(e) => setTermsAccepted(e.target.checked)}
-                                            className="peer appearance-none w-5 h-5 bride-2 bride-slate-600 rounded checked:bg-primary-500 checked:bride-primary-500 transition-colors" 
+                                            className="peer appearance-none w-5 h-5 border-2 border-slate-600 rounded checked:bg-primary-500 checked:border-primary-500 transition-colors" 
                                         />
                                         <CheckCircle2 className="absolute top-0 left-0 w-5 h-5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none p-0.5" />
                                     </div>

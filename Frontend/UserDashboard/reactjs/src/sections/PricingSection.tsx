@@ -16,7 +16,7 @@ export default function PricingSection() {
 
             <div className="flex flex-wrap items-stretch justify-center gap-8 mt-20 max-w-6xl mx-auto px-4">
                 {pricingData.map((plan: IPricing, index: number) => (
-                    <motion.div key={index} className={`w-full max-w-sm md:w-80 flex flex-col text-left bride p-6 md:p-8 rounded-2xl transition duration-300 ${plan.mostPopular ? 'bg-primary-950/20 bride-primary-500/50 relative shadow-xl shadow-primary-500/10' : 'bg-white/[0.02] bride-white/10'}`}
+                    <motion.div key={index} className={`w-full max-w-sm md:w-80 flex flex-col text-left border p-6 md:p-8 rounded-2xl transition duration-300 ${plan.mostPopular ? 'bg-primary-950/20 border-primary-500/50 relative shadow-xl shadow-primary-500/10' : 'bg-white/[0.02] border-white/10'}`}
                         initial={{ y: 50, opacity: 0 }}
                         whileInView={{ y: 0, opacity: 1 }}
                         viewport={{ once: true }}
@@ -26,7 +26,7 @@ export default function PricingSection() {
                             <p className="absolute px-4 text-[11px] font-bold uppercase tracking-wider -top-3 left-1/2 -translate-x-1/2 py-1.5 bg-primary-500 text-white rounded-full">Most Popular</p>
                         )}
                         <p className="font-medium text-lg text-primary-400 mb-2">{plan.name}</p>
-                        <h1 className="text-5xl font-bold text-white mb-8 bride-b bride-white/10 pb-8 tracking-tight">
+                        <h1 className="text-5xl font-bold text-white mb-8 border-b border-white/10 pb-8 tracking-tight">
                             ₹{plan.price}<span className="text-slate-500 font-medium text-lg ml-1">/{plan.period}</span>
                         </h1>
                         <ul className="list-none text-slate-300 space-y-5 mb-10 flex-grow">

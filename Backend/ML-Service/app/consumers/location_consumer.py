@@ -56,8 +56,21 @@ def callback(ch, method, properties, body):
             logger.error(f"Missing required fields. Received: {data}")
             return
 
+        # Check for cached results within 2.5 km first (matching README location radius match spec)
+        from ..utils.geo_utils import calculate_distance
+        pattern = f"disruptions:{date}:*"
+        all_keys = redis_client.keys(pattern)
+        
+        cached = None
         redis_key = f"disruptions:{date}:{lat}_{lng}"
-        cached = redis_client.get(redis_key)
+        for key in all_keys:
+            cached_data = redis_client.get(key)
+            if cached_data and "lat" in cached_data and "lng" in cached_data:
+                dist = calculate_distance(lat, lng, cached_data["lat"], cached_data["lng"])
+                if dist <= 2.5:
+                    cached = cached_data
+                    redis_key = key
+                    break
 
         if cached:
             print("\n" + "-" * 60)

@@ -42,7 +42,10 @@ const connectRabbitMQ = async () => {
         console.error("PaymentService RabbitMQ channel error:", err.message);
       });
       channel.on("close", () => {
-        console.log("PaymentService RabbitMQ channel closed.");
+        console.log("PaymentService RabbitMQ channel closed. Closing connection to trigger reconnect...");
+        if (connection) {
+          connection.close().catch(() => {});
+        }
       });
       
       console.log('🐇 RabbitMQ Connected successfully!');

@@ -15,7 +15,7 @@ export default function ContactSection() {
                     transition={{ type: "spring", stiffness: 320, damping: 70, mass: 1 }}
                 >
                     <p className='mb-2 font-medium'>Your name</p>
-                    <div className='flex items-center pl-3 rounded-lg bride bride-slate-700 focus-within:bride-primary-500'>
+                    <div className='flex items-center pl-3 rounded-lg border border-slate-700 focus-within:border-primary-500'>
                         <UserIcon className='size-5' />
                         <input name='name' type="text" placeholder='Enter your name' className='w-full p-3 outline-none' />
                     </div>
@@ -28,7 +28,7 @@ export default function ContactSection() {
                     transition={{ type: "spring", stiffness: 280, damping: 70, mass: 1 }}
                 >
                     <p className='mb-2 font-medium'>Email id</p>
-                    <div className='flex items-center pl-3 rounded-lg bride bride-slate-700 focus-within:bride-primary-500'>
+                    <div className='flex items-center pl-3 rounded-lg border border-slate-700 focus-within:border-primary-500'>
                         <MailIcon className='size-5' />
                         <input name='email' type="email" placeholder='Enter your email' className='w-full p-3 outline-none' />
                     </div>
@@ -41,7 +41,7 @@ export default function ContactSection() {
                     transition={{ type: "spring", stiffness: 240, damping: 70, mass: 1 }}
                 >
                     <p className='mb-2 font-medium'>Message</p>
-                    <textarea name='message' rows={8} placeholder='Enter your message' className='focus:bride-primary-500 resize-none w-full p-3 outline-none rounded-lg bride bride-slate-700' />
+                    <textarea name='message' rows={8} placeholder='Enter your message' className='focus:border-primary-500 resize-none w-full p-3 outline-none rounded-lg border border-slate-700' />
                 </motion.div>
 
                 <motion.button type='submit' className='w-max flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-10 py-3 rounded-full'

@@ -11,7 +11,7 @@ export default function Navbar() {
 
     return (
         <>
-            <motion.nav className="fixed top-0 z-50 flex items-center justify-between w-full py-4 px-6 md:px-16 lg:px-24 xl:px-32 backdrop-blur-md bg-black/10 bride-b bride-white/5"
+            <motion.nav className="fixed top-0 z-50 flex items-center justify-between w-full py-4 px-6 md:px-16 lg:px-24 xl:px-32 backdrop-blur-md bg-black/10 border-b border-white/5"
                 initial={{ y: -100, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 viewport={{ once: true }}
@@ -66,7 +66,7 @@ export default function Navbar() {
                         </motion.div>
                     </div>
                 </motion.button>
-                <button onClick={() => setIsOpen(true)} className="md:hidden text-white p-2 bride bride-white/10 rounded-xl bg-white/5 active:scale-90 transition">
+                <button onClick={() => setIsOpen(true)} className="md:hidden text-white p-2 border border-white/10 rounded-xl bg-white/5 active:scale-90 transition">
                     <MenuIcon size={24} />
                 </button>
             </motion.nav>
@@ -102,7 +102,7 @@ export default function Navbar() {
                 
                 <button 
                     onClick={() => setIsOpen(false)} 
-                    className="absolute bottom-12 size-14 flex items-center justify-center bg-white/10 bride bride-white/10 text-white rounded-full active:scale-90 transition group hover:bg-white/20"
+                    className="absolute bottom-12 size-14 flex items-center justify-center bg-white/10 border border-white/10 text-white rounded-full active:scale-90 transition group hover:bg-white/20"
                 >
                     <XIcon size={28} className="rotate-0 group-hover:rotate-90 transition-transform duration-300" />
                 </button>

@@ -58,7 +58,7 @@ export default function TiltedImage({ rotateAmplitude = 3 }) {
                 }}
             >
                 <motion.div 
-                    className="relative transform-3d w-full max-w-5xl rounded-[15px] xl:rounded-[24px] bride bride-white/10 shadow-[0_-40px_80px_-40px_var(--color-primary-500)] overflow-hidden" 
+                    className="relative transform-3d w-full max-w-5xl rounded-[15px] xl:rounded-[24px] border border-white/10 shadow-[0_-40px_80px_-40px_var(--color-primary-500)] overflow-hidden" 
                     style={{ rotateX: rotateXMouse, rotateY: rotateYMouse }} 
                 >
                     <img 

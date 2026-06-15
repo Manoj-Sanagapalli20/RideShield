@@ -37,16 +37,16 @@ export default function FAQSection() {
                 {faqs.map((faq, index) => (
                     <details 
                         key={index} 
-                        className="group bride bride-white/5 bg-white/[0.02] p-6 rounded-2xl [&_summary::-webkit-details-marker]:hidden hover:bg-white/[0.04] transition-colors"
+                        className="group border border-white/5 bg-white/[0.02] p-6 rounded-2xl [&_summary::-webkit-details-marker]:hidden hover:bg-white/[0.04] transition-colors"
                         open={index === 0} // open the first one by default
                     >
-                        <summary className="flex cursor-pointer items-center justify-between gap-4 text-lg font-medium text-white transition-colors duration-300 group-open:-mb-4 group-open:pb-4 group-open:bride-b group-open:bride-white/10">
+                        <summary className="flex cursor-pointer items-center justify-between gap-4 text-lg font-medium text-white transition-colors duration-300 group-open:-mb-4 group-open:pb-4 group-open:border-b group-open:border-white/10">
                             <h2 className="group-open:text-primary-400 group-hover:text-primary-300 transition-colors pr-6">{faq.q}</h2>
-                            <span className="relative size-6 shrink-0 bg-white/5 rounded-full flex items-center justify-center bride bride-white/10 group-open:bg-primary-500/10 group-open:bride-primary-500/20 transition-all">
+                            <span className="relative size-6 shrink-0 bg-white/5 rounded-full flex items-center justify-center border border-white/10 group-open:bg-primary-500/10 group-open:border-primary-500/20 transition-all">
                                 <ChevronDown className="size-4 transition duration-300 group-open:-rotate-180 text-primary-500" />
                             </span>
                         </summary>
-                        <p className="mt-8 leading-relaxed text-slate-400 pl-2 bride-l-2 bride-primary-500/50">
+                        <p className="mt-8 leading-relaxed text-slate-400 pl-2 border-l-2 border-primary-500/50">
                             {faq.a}
                         </p>
                     </details>
