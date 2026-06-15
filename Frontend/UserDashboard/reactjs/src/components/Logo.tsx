@@ -1,13 +1,54 @@
-export const Logo = ({ className = "h-8" }: { className?: string }) => (
+interface LogoProps {
+    className?: string;
+    width?: string | number;
+    height?: string | number;
+}
+
+export const Logo = ({ className = "text-primary-500", width, height }: LogoProps) => (
     <svg 
         xmlns="http://www.w3.org/2000/svg" 
-        viewBox="0 0 71 36" 
+        viewBox="0 0 100 100" 
         fill="none" 
         className={className}
+        width={width}
+        height={height}
     >
-        <g>
-            <path d="M 37.787 1.454 C 38.71 0.594 39.989 0.106 41.327 0.102 L 58.466 0.102 C 69.611 0.102 75.192 12.54 67.31 19.814 L 50.146 35.66 C 49.358 36.387 48.011 35.872 48.011 34.842 L 48.011 20.887 L 49.994 19.056 C 51.571 17.6 50.455 15.114 48.225 15.114 L 22.991 15.114 L 37.787 1.454 Z" fill="currentColor"></path>
-            <path d="M 33.213 34.545 C 32.29 35.405 31.011 35.894 29.673 35.898 L 12.534 35.898 C 1.389 35.898 -4.192 23.46 3.69 16.186 L 20.854 0.34 C 21.642 -0.387 22.99 0.129 22.99 1.157 L 22.99 15.113 L 21.006 16.944 C 19.429 18.4 20.545 20.886 22.775 20.886 L 48.009 20.886 L 33.211 34.545 Z" fill="currentColor"></path>
-        </g>
+        <defs>
+            <linearGradient id="shieldGoldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FDE047" />
+                <stop offset="50%" stop-color="#EAB308" />
+                <stop offset="100%" stop-color="#CA8A04" />
+            </linearGradient>
+            <radialGradient id="shieldBgGradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#1E1B18" />
+                <stop offset="100%" stop-color="#090908" />
+            </radialGradient>
+        </defs>
+        {/* Shield Background with Inner Glow */}
+        <path 
+            d="M 50,12 Q 33,14 22,21 C 22,51 30,76 50,93 C 70,76 78,51 78,21 Q 67,14 50,12 Z" 
+            fill="url(#shieldBgGradient)" 
+            stroke="url(#shieldGoldGradient)" 
+            strokeWidth="5" 
+            strokeLinejoin="round"
+        />
+        {/* Lightning Bolt inside shield */}
+        <path 
+            d="M 52,28 L 36,47 L 46,47 L 40,70 L 60,41 L 48,41 Z" 
+            fill="url(#shieldGoldGradient)"
+        />
+        {/* Rain Cloud overlapping top right */}
+        <path 
+            d="M 62,35 C 60,35 59,33.5 59,32 C 59,28 62,25 66,25 C 67,21 71,18 76,18 C 81.5,18 86,22 86,27.5 C 86,28 85.9,28.5 85.8,29 C 88.2,29.5 90,31.5 90,34 C 90,37 87.5,39.5 84.5,39.5 L 62,39.5" 
+            fill="url(#shieldGoldGradient)"
+        />
+        {/* Rain drops falling from cloud */}
+        <path 
+            d="M 66,45 L 64,49 M 73,46 L 71,50 M 80,45 L 78,49" 
+            stroke="url(#shieldGoldGradient)" 
+            strokeWidth="2.5" 
+            strokeLinecap="round"
+        />
     </svg>
 );
+

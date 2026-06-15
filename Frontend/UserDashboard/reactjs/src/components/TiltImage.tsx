@@ -62,7 +62,7 @@ export default function TiltedImage({ rotateAmplitude = 3 }) {
                     style={{ rotateX: rotateXMouse, rotateY: rotateYMouse }} 
                 >
                     <img 
-                        src="/assets/dashboard.png"
+                        src="/assets/rideshield_dashboard.png"
                         className="w-full object-cover will-change-transform transform-[translateZ(0)]"
                         alt="RideShield Dashboard"
                     />
