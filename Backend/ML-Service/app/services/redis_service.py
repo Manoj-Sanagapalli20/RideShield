@@ -12,7 +12,11 @@ class RedisService:
             if redis_url:
                 self.client = redis.Redis.from_url(
                     redis_url,
-                    decode_responses=True
+                    decode_responses=True,
+                    socket_timeout=5,
+                    socket_connect_timeout=5,
+                    socket_keepalive=True,
+                    retry_on_timeout=True
                 )
             else:
                 host = os.getenv("REDIS_HOST", 'redis-13328.crce206.ap-south-1-1.ec2.cloud.redislabs.com')
@@ -24,7 +28,11 @@ class RedisService:
                     port=port, 
                     password=password,
                     db=0, 
-                    decode_responses=True
+                    decode_responses=True,
+                    socket_timeout=5,
+                    socket_connect_timeout=5,
+                    socket_keepalive=True,
+                    retry_on_timeout=True
                 )
             self.client.ping()
         except Exception as e:

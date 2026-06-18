@@ -73,7 +73,7 @@ async function startServer() {
 
         const payouts = await DisruptionPayout
           .find({ userId })
-          .sort({ createdAt: -1 })
+          .sort({ date: -1, createdAt: -1 })
           .limit(20);
 
         const total = payouts.reduce((sum, p) => sum + p.amount, 0);

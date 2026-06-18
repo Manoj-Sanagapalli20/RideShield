@@ -13,7 +13,7 @@ import "./globals.css";
 export default function App() {
     return (
         <>
-            <Toaster position="top-center" reverseRide={false} />
+            <Toaster position="top-center" reverseOrder={false} />
             <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/login" element={<LoginPage />} />

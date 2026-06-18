@@ -10,29 +10,33 @@ logger = logging.getLogger(__name__)
 
 def _print_disruption_summary(source: str, user_id: str, date: str, data: dict):
     """Prints a clear, readable disruption summary to the terminal using ASCII."""
-    disruptions = data.get("disruptions", [])
-    weather = data.get("disruptionsByType", {}).get("weather", [])
-    social = data.get("disruptionsByType", {}).get("social", [])
-    zone = data.get("zone", "Unknown")
+    try:
+        disruptions = data.get("disruptions", [])
+        weather = data.get("disruptionsByType", {}).get("weather", [])
+        social = data.get("disruptionsByType", {}).get("social", [])
+        zone = data.get("zone", "Unknown")
 
-    print("\n" + "=" * 60)
-    print(f"  [ML SERVICE]  [{source}]")
-    print("=" * 60)
-    print(f"  User     : {user_id}")
-    print(f"  Date     : {date}")
-    print(f"  Zone     : {zone}")
-    print(f"  Coords   : {data.get('lat')}, {data.get('lng')}")
-    print("-" * 60)
+        print("\n" + "=" * 60)
+        print(f"  [ML SERVICE]  [{source}]")
+        print("=" * 60)
+        print(f"  User     : {user_id}")
+        print(f"  Date     : {date}")
+        try:
+            print(f"  Zone     : {zone}")
+        except Exception:
+            print(f"  Zone     : [Unicode Encoding Error]")
+        print(f"  Coords   : {data.get('lat')}, {data.get('lng')}")
+        print("-" * 60)
 
-    if not disruptions:
-        print("  [OK] No disruptions detected for this location/date.")
-    else:
-        print(f"  [WARNING] {len(disruptions)} disruption(s) found:\n")
-        for i, d in enumerate(disruptions, 1):
-            dtype = d.get("type", "?").upper()
-            level = d.get("level", "?").upper()
-            window = d.get("time", "?")
-            print(f"  {i}. [{dtype}] Level: {level:<8}  Window: {window}")
+        if not disruptions:
+            print("  [OK] No disruptions detected for this location/date.")
+        else:
+            print(f"  [WARNING] {len(disruptions)} disruption(s) found:\n")
+            for i, d in enumerate(disruptions, 1):
+                dtype = d.get("type", "?").upper()
+                level = d.get("level", "?").upper()
+                window = d.get("time", "?")
+                print(f"  {i}. [{dtype}] Level: {level:<8}  Window: {window}")
 
         print()
         if weather:
@@ -40,7 +44,9 @@ def _print_disruption_summary(source: str, user_id: str, date: str, data: dict):
         if social:
             print(f"  Social events  : {len(social)}")
 
-    print("=" * 60 + "\n")
+        print("=" * 60 + "\n")
+    except Exception as e:
+        logger.error(f"Error printing disruption summary: {e}")
 
 
 def callback(ch, method, properties, body):

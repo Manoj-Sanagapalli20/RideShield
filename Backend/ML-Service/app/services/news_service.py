@@ -29,44 +29,34 @@ NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
 # ── Keywords used to classify and filter articles ─────────────────────────────
 _CURFEW_PATTERN = re.compile(r"\bcurfew\b", re.IGNORECASE)
 _STRIKE_PATTERN = re.compile(r"\b(strike|bandh|hartal|shutdown|blockade)\b", re.IGNORECASE)
+_IGNORE_PATTERN = re.compile(
+    r"\b(air strike|missile strike|military strike|precision strike|drone strike|surgical strike|"
+    r"hunger strike|lightning strike|strike a deal|strike gold|strike a balance|strike a chord|"
+    r"government shutdown)\b",
+    re.IGNORECASE
+)
 
 
 def _resolve_location(lat: float, lng: float) -> dict:
     """
     Returns a dict with the best available names for the region:
       city, state, country, query_term
-    Uses Nominatim reverse-geocoding.
+    Uses the cached reverse geocoding utility.
     """
-    result = {"city": "", "state": "", "country": "", "query_term": ""}
-    try:
-        url = (
-            f"https://nominatim.openstreetmap.org/reverse"
-            f"?format=json&lat={lat}&lon={lng}"
-        )
-        headers = {"User-Agent": "RideShield-ML-Service/1.0"}
-        res = requests.get(url, headers=headers, timeout=5)
-        if res.status_code == 200:
-            address = res.json().get("address", {})
-            city = (
-                address.get("city")
-                or address.get("town")
-                or address.get("municipality")
-                or address.get("village")
-                or address.get("county")
-                or address.get("state_district")
-                or address.get("district")
-                or ""
-            )
-            state   = address.get("state", "")
-            country = address.get("country", "")
-            result["city"]    = city
-            result["state"]   = state
-            result["country"] = country
-            # Use the most specific non-empty name for the news query
-            result["query_term"] = (city or state or "").strip()
-    except Exception as e:
-        logger.error(f"Reverse geocode error: {e}")
-    return result
+    from ..utils.geo_utils import reverse_geocode_coords
+    geo = reverse_geocode_coords(lat, lng)
+    
+    city = geo.get("city", "")
+    state = geo.get("state", "")
+    country = geo.get("country", "")
+    query_term = (city or state or "").strip()
+    
+    return {
+        "city": city,
+        "state": state,
+        "country": country,
+        "query_term": query_term
+    }
 
 
 def _classify_disruption(text: str) -> str:
@@ -112,6 +102,7 @@ def get_local_news(lat: float, lng: float, date: str, pincode: str = "") -> list
             f"https://newsapi.org/v2/everything"
             f"?q={requests.utils.quote(query)}"
             f"&from={date}"
+            f"&to={date}"
             f"&sortBy=publishedAt"
             f"&language=en"
             f"&pageSize=10"
@@ -130,6 +121,10 @@ def get_local_news(lat: float, lng: float, date: str, pincode: str = "") -> list
             description = article.get("description") or ""
             combined    = f"{title} {description}"
 
+            # Skip military, hunger, metaphorical or non-transportation strikes
+            if _IGNORE_PATTERN.search(combined):
+                continue
+
             # Only keep articles that are genuinely about strikes or curfews
             is_curfew = bool(_CURFEW_PATTERN.search(combined))
             is_strike = bool(_STRIKE_PATTERN.search(combined))
@@ -138,10 +133,16 @@ def get_local_news(lat: float, lng: float, date: str, pincode: str = "") -> list
                 continue
 
             # Further filter: ensure the article is actually about our region
-            if location_term and location_term.lower() not in combined.lower():
-                # Try by state name as a fallback
-                state = location_info.get("state", "")
-                if state and state.lower() not in combined.lower():
+            if location_term:
+                region_matched = False
+                if location_term.lower() in combined.lower():
+                    region_matched = True
+                else:
+                    state = location_info.get("state", "")
+                    if state and state.lower() in combined.lower():
+                        region_matched = True
+                
+                if not region_matched:
                     continue
 
             disruption_type = "curfew" if is_curfew else "strike"

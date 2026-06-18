@@ -101,13 +101,14 @@ def _build_synthetic_dataset(n_normal: int = 600, n_anomaly: int = 60, seed: int
         ))
 
     # ── Anomalous transactions ───────────────────────────────────────────────
-    for _ in range(n_anomaly):
+    for i in range(n_anomaly):
         hour = int(rng.choice([0, 1, 2, 3, 4, 23, 22]))
         dev  = rng.choice(DEVICE_TYPES)
+        amount_val = float(rng.uniform(8000, 50000)) if (i % 2 == 0) else float(rng.uniform(100, 2000))
         rows.append(_encode_features(
             orders_last_2hr=int(rng.integers(10, 31)),
             claims_last_30_days=int(rng.integers(5, 16)),
-            amount_inr=float(rng.uniform(8000, 50000)),
+            amount_inr=amount_val,
             hour_of_day=hour,
             device_type=dev,
         ))
@@ -185,9 +186,9 @@ class FraudModel:
         raw = float(self.model.decision_function(feat_scaled)[0])
         anomaly_score = self._iso_score_to_anomaly(raw)
 
-        if anomaly_score >= 0.65:
+        if anomaly_score >= 0.55:
             verdict = "flag"
-        elif anomaly_score >= 0.45:
+        elif anomaly_score >= 0.30:
             verdict = "review"
         else:
             verdict = "approve"

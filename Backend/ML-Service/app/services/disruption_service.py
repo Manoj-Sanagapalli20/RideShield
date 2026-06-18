@@ -64,8 +64,8 @@ def build_disruption_array(lat: float, lng: float, date: str, pincode: str):
                 _add("heat", current_heat_start, hour, level=level)
                 current_heat_start = None
 
-        # 💨 Pollution detection
-        if aqi > 400:
+        # 💨 Pollution detection (US AQI > 300 is hazardous and represents severe pollution disruption)
+        if aqi > 300:
             if current_poll_start is None:
                 current_poll_start = hour
         else:
@@ -135,6 +135,9 @@ def build_disruption_array(lat: float, lng: float, date: str, pincode: str):
         "lat": lat,
         "lng": lng,
         "zone": get_zone_name(lat, lng, pincode),
+        "peak_precipitation": max(rain_data) if rain_data else 0.0,
+        "peak_temperature": max(temp_data) if temp_data else 25.0,
+        "peak_aqi": max(aqi_data) if aqi_data else 0.0,
         "disruptionsByType": {
             "weather": weather_disruptions,
             "social": social_disruptions,

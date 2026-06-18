@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from ..services.redis_service import redis_client
 from ..services.disruption_service import build_disruption_array
-from ..utils.geo_utils import calculate_distance
+from ..utils.geo_utils import calculate_distance, reverse_geocode_coords
 
 router = APIRouter()
 
@@ -69,3 +69,60 @@ def get_zone_disruptions(req: DisruptionRequest):
         "zone": fresh_data.get("zone", req.pincode),
         "disruptions": disruptions
     }
+
+
+@router.get("/geocode")
+def geocode_city(city: str):
+    import requests
+    import urllib.parse
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(city)}&format=json&limit=1&addressdetails=1"
+        headers = {
+            'User-Agent': 'RideShield-ML-Service/1.0'
+        }
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            if data and len(data) > 0:
+                addr = data[0].get("address", {})
+                postcode = addr.get("postcode", "")
+                return {
+                    "lat": float(data[0]["lat"]),
+                    "lng": float(data[0]["lon"]),
+                    "pincode": postcode,
+                    "success": True
+                }
+    except Exception as e:
+        logger.error(f"Geocoding endpoint error: {e}")
+        
+    return {
+        "success": False,
+        "error": "Could not resolve city coordinates."
+    }
+
+
+@router.get("/reverse")
+def reverse_geocode(lat: float, lng: float):
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        geo = reverse_geocode_coords(lat, lng)
+        city_val = geo.get("city") or "Live GPS Location"
+        return {
+            "city": city_val,
+            "pincode": geo.get("pincode") or "",
+            "success": True
+        }
+    except Exception as e:
+        logger.error(f"Reverse geocoding endpoint error: {e}")
+        
+    return {
+        "success": False,
+        "error": "Could not reverse geocode coordinates."
+    }
+
+

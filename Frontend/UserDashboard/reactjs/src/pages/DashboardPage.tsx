@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     FiShield, FiCloudRain, FiCheckCircle, FiArrowUpRight,
-    FiMapPin, FiX, FiZap, FiAlertTriangle, FiUser, FiCalendar, FiTrendingUp, FiActivity, FiHelpCircle
+    FiMapPin, FiX, FiAlertTriangle, FiUser, FiCalendar, FiTrendingUp, FiActivity, FiHelpCircle
 } from "react-icons/fi";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
@@ -35,12 +35,68 @@ function getGreeting() {
     return "Good evening";
 }
 
+const parseReason = (reasonStr: string) => {
+    if (!reasonStr) return { approved: [], rejected: [], isFullRejection: false };
+    
+    if (reasonStr.startsWith("Rejected:")) {
+        return {
+            approved: [],
+            rejected: [{ time: "", reason: reasonStr.replace("Rejected: ", "").trim() }],
+            isFullRejection: true
+        };
+    }
+    
+    const parts = reasonStr.split('. Rejections: ');
+    const approvedPart = parts[0];
+    const rejectedPart = parts[1] || "";
+    
+    const approved = approvedPart ? approvedPart.split(', ').map(item => {
+        const match = item.match(/(.*?)\s*\((.*?)\)/);
+        if (match) {
+            return { type: match[1].trim(), time: match[2].trim() };
+        }
+        return { type: "Disruption", time: item.trim() };
+    }).filter(x => x.time) : [];
+    
+    const rejected = rejectedPart ? rejectedPart.split(', ').map(item => {
+        const match = item.match(/(.*?)\s*rejected\s*\((.*?)\)/);
+        if (match) {
+            return { time: match[1].trim(), reason: match[2].trim() };
+        }
+        return { time: "", reason: item.trim() };
+    }).filter(x => x.reason) : [];
+    
+    return { approved, rejected, isFullRejection: false };
+};
+
+const getApprovedReasonOnly = (reason: string) => {
+    if (!reason) return "";
+    if (reason.startsWith("Rejected:")) {
+        return reason;
+    }
+    return reason.split('. Rejections: ')[0];
+};
+
+const isRealDisruption = (reason: string) => {
+    if (!reason) return false;
+    const lower = reason.toLowerCase();
+    if (lower.includes("below the rideshield threshold") || lower.includes("clear weather")) {
+        return false;
+    }
+    if (lower.includes("disruption")) {
+        if (lower.includes("no strike disruptions")) {
+            return false;
+        }
+        return true;
+    }
+    return false;
+};
+
 export default function DashboardPage() {
     const [searchParams, setSearchParams] = useSearchParams();
+    const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
     const cityParam = searchParams.get("city");
     const dateParam = searchParams.get("date");
-    const latParam = searchParams.get("lat");
-    const lngParam = searchParams.get("lng");
     const pincodeParam = searchParams.get("pincode");
 
     const [showLocationModal, setShowLocationModal] = useState(() => !cityParam || !dateParam);
@@ -84,6 +140,7 @@ export default function DashboardPage() {
 
     const loadData = async () => {
         setIsLoading(true);
+        let fetchedPayouts = [];
         try {
             const [payoutRes, policyRes] = await Promise.allSettled([
                 fetch(`${PAYMENT_SERVICE}/api/disruption-payouts/${userId}`),
@@ -91,7 +148,8 @@ export default function DashboardPage() {
             ]);
             if (payoutRes.status === "fulfilled" && payoutRes.value.ok) {
                 const d = await payoutRes.value.json();
-                setPayouts(d.payouts || []);
+                fetchedPayouts = d.payouts || [];
+                setPayouts(fetchedPayouts);
                 setTotalPayout(d.totalAmount || 0);
             }
             if (policyRes.status === "fulfilled" && policyRes.value.ok) {
@@ -99,6 +157,7 @@ export default function DashboardPage() {
             }
         } catch (e) { console.error(e); }
         setIsLoading(false);
+        return fetchedPayouts;
     };
 
     const pushLocation = (lat: number, lng: number, dateStr?: string, pc?: string) => {
@@ -118,39 +177,9 @@ export default function DashboardPage() {
             const lngStr = searchParams.get("lng");
             const pincode = searchParams.get("pincode") || "";
 
-            // 1. If parameters are not in URL, run GPS detection or fallback
+            // 1. If parameters are not in URL, do NOT trigger automatically
             if (!city || !date) {
-                navigator.geolocation?.getCurrentPosition(
-                    async (p) => {
-                        const lat = p.coords.latitude;
-                        const lon = p.coords.longitude;
-                        const d = new Date();
-                        const offset = d.getTimezoneOffset();
-                        const localDate = new Date(d.getTime() - (offset * 60 * 1000));
-                        const todayStr = localDate.toISOString().split("T")[0];
-                        try {
-                            const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-                            const geoData = await geoRes.json();
-                            const addr = geoData.address || {};
-                            const cityVal = addr.city || addr.town || addr.municipality || addr.village || addr.county || "Live GPS Location";
-                            const pc = addr.postcode || "";
-                            setSearchParams({ city: cityVal, date: todayStr, lat: String(lat), lng: String(lon), pincode: pc });
-                            setShowLocationModal(false);
-                        } catch (e) {
-                            setSearchParams({ city: "Live GPS Location", date: todayStr, lat: String(lat), lng: String(lon) });
-                            setShowLocationModal(false);
-                        }
-                    },
-                    (err) => {
-                        // Fallback to Bhattiprolu
-                        const d = new Date();
-                        const offset = d.getTimezoneOffset();
-                        const localDate = new Date(d.getTime() - (offset * 60 * 1000));
-                        const todayStr = localDate.toISOString().split("T")[0];
-                        setSearchParams({ city: "Bhattiprolu", date: todayStr, lat: "16.0145", lng: "80.7828", pincode: "522256" });
-                    },
-                    { timeout: 5000 }
-                );
+                loadData();
                 return;
             }
 
@@ -178,24 +207,25 @@ export default function DashboardPage() {
 
                 if (lat === null || lon === null) {
                     setAnalysisStage(`Searching coordinates for ${city}...`);
-                    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1&addressdetails=1`);
+                    const res = await fetch(`http://localhost:8000/api/ml/geocode?city=${encodeURIComponent(city)}`);
                     const d = await res.json();
-                    if (d && d.length > 0) {
-                        lat = parseFloat(d[0].lat);
-                        lon = parseFloat(d[0].lon);
+                    if (d && d.success) {
+                        lat = d.lat;
+                        lon = d.lng;
                         if (!pc) {
-                            pc = d[0].address?.postcode || "";
+                            pc = d.pincode || "";
                         }
                         setSearchParams({ city, date, lat: String(lat), lng: String(lon), pincode: pc }, { replace: true });
                     } else {
                         lat = 16.0145;
                         lon = 80.7828;
                         pc = "522256";
+                        setSearchParams({ city, date, lat: String(lat), lng: String(lon), pincode: pc }, { replace: true });
                     }
                 }
 
                 setAnalysisStage("Contacting weather station via GPS coordinates...");
-                pushLocation(lat, lon, date, pc);
+                pushLocation(lat!, lon!, date, pc);
 
                 setTimeout(() => {
                     setAnalysisStage("Retrieving partner shift activity logs...");
@@ -206,8 +236,23 @@ export default function DashboardPage() {
                 }, 1800);
 
                 setTimeout(async () => {
-                    await loadData();
+                    const firstFetch = await loadData();
                     setIsAnalyzing(false);
+
+                    // Polling for the new payout to be written to DB asynchronously
+                    const targetDate = date;
+                    const hasNewPayout = firstFetch.some(p => p.date === targetDate);
+                    if (!hasNewPayout) {
+                        let attempts = 0;
+                        const interval = setInterval(async () => {
+                            attempts++;
+                            const currentFetch = await loadData();
+                            const found = currentFetch.some(p => p.date === targetDate);
+                            if (found || attempts >= 5) {
+                                clearInterval(interval);
+                            }
+                        }, 2000);
+                    }
                 }, 2600);
 
             } catch (err) {
@@ -221,6 +266,7 @@ export default function DashboardPage() {
     }, [userId, searchParams, lastTriggered]);
 
     const handleCurrentLocation = () => {
+        setIsFetchingLocation(true);
         navigator.geolocation?.getCurrentPosition(
             async (p) => {
                 const lat = p.coords.latitude;
@@ -236,18 +282,24 @@ export default function DashboardPage() {
                 setAnalysisStage("Resolving live GPS location coordinates...");
 
                 try {
-                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                    const geoRes = await fetch(`http://localhost:8000/api/ml/reverse?lat=${lat}&lng=${lon}`);
                     const geoData = await geoRes.json();
-                    const addr = geoData.address || {};
-                    const cityVal = addr.city || addr.town || addr.municipality || addr.village || addr.county || "Live GPS Location";
-                    const pc = addr.postcode || "";
-                    setSearchParams({ city: cityVal, date: todayStr, lat: String(lat), lng: String(lon), pincode: pc });
-                } catch (err) {
+                    if (geoData && geoData.success) {
+                        const cityVal = geoData.city;
+                        const pc = geoData.pincode || "";
+                        setSearchParams({ city: cityVal, date: todayStr, lat: String(lat), lng: String(lon), pincode: pc });
+                    } else {
+                        throw new Error("Reverse geocoding failed");
+                    }
+                } catch {
                     setSearchParams({ city: "Live GPS Location", date: todayStr, lat: String(lat), lng: String(lon) });
+                } finally {
+                    setIsFetchingLocation(false);
                 }
             },
-            (err) => {
+            (_err) => {
                 alert("GPS access denied or timed out.");
+                setIsFetchingLocation(false);
             },
             { enableHighAccuracy: true, timeout: 5000 }
         );
@@ -468,51 +520,69 @@ export default function DashboardPage() {
                                 <span className="text-[10px] font-bold text-slate-500">{currentDate}</span>
                             </div>
 
-                            {activePayout ? (
+                            {!cityParam || !dateParam ? (
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-baseline">
+                                        <h2 className="text-xl font-bold text-slate-400 tracking-tight">No Active Simulation</h2>
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-400 font-medium flex items-center gap-2">
+                                        <FiHelpCircle className="size-4 shrink-0 text-slate-500" />
+                                        Please select a location using the 'Simulate disruption' button to test weather checks.
+                                    </div>
+                                </div>
+                            ) : activePayout ? (
                                 activePayout.status === 'PROCESSED' ? (
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-baseline">
                                             <h2 className="text-2xl font-bold text-white tracking-tight">
                                                 {activePayout.reason.includes("Rain") ? "Rain Active" : activePayout.reason.includes("Strike") ? "Strike Active" : "Disruption Active"}
                                             </h2>
-                                            <span className="text-xs font-semibold text-primary-400">
+                                            <span className="text-xs font-semibold text-emerald-400">
                                                 {activePayout.disruptedHours}h Disrupted
                                             </span>
                                         </div>
                                         <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                            <div className="h-full bg-primary-500 rounded-full w-[85%]" />
+                                            <div className="h-full bg-emerald-500 rounded-full w-[85%]" />
                                         </div>
-                                        <div className="p-2.5 rounded-lg bg-primary-500/10 border border-primary-500/20 text-xs text-primary-400 font-medium flex items-center gap-2">
+                                        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium flex items-center gap-2">
                                             <FiAlertTriangle className="size-3.5 shrink-0" />
                                             Payout Triggered: +₹{activePayout.amount.toFixed(2)} dispatched!
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-baseline">
-                                            <h2 className="text-2xl font-bold text-slate-300 tracking-tight">
-                                                {activePayout.reason.includes("Clear weather") ? "Clear Weather" : "Disruption Detected"}
-                                            </h2>
-                                            <span className="text-xs font-semibold text-slate-500">
-                                                {activePayout.reason.includes("Clear weather") ? "0% Intensity" : "Claim Rejected"}
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                            <div className="h-full bg-slate-700 rounded-full w-0" />
-                                        </div>
-                                        {activePayout.reason.includes("Clear weather") ? (
-                                            <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium flex items-center gap-2">
-                                                <FiCheckCircle className="size-3.5 shrink-0" />
-                                                Parametric Monitoring Active. Safe Hours.
+                                ) : (() => {
+                                    const isFraud = activePayout.reason.toLowerCase().includes("fraud") || activePayout.reason.toLowerCase().includes("anomaly");
+                                    return (
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-baseline">
+                                                <h2 className="text-2xl font-bold tracking-tight text-white">
+                                                    {isFraud ? "Fraud/Anomaly Alert" : !isRealDisruption(activePayout.reason) ? "Clear Weather" : "Disruption Detected"}
+                                                </h2>
+                                                <span className={`text-xs font-semibold ${isFraud ? "text-red-400 font-bold" : "text-slate-500"}`}>
+                                                    {isFraud ? "Blocked by Risk Engine" : !isRealDisruption(activePayout.reason) ? "0% Intensity" : "Claim Rejected"}
+                                                </span>
                                             </div>
-                                        ) : (
-                                            <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-medium flex items-center gap-2">
-                                                <FiAlertTriangle className="size-3.5 shrink-0" />
-                                                Unpaid: {activePayout.reason.replace("Rejected: ", "")}
+                                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                                <div className={`h-full ${isFraud ? "bg-red-500 w-[100%]" : "bg-slate-700 w-0"}`} />
                                             </div>
-                                        )}
-                                    </div>
-                                )
+                                            {isFraud ? (
+                                                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 font-medium flex items-center gap-2">
+                                                    <FiAlertTriangle className="size-3.5 shrink-0" />
+                                                    Blocked: {activePayout.reason.replace("Rejected: ", "")}
+                                                </div>
+                                            ) : !isRealDisruption(activePayout.reason) ? (
+                                                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium flex items-center gap-2">
+                                                    <FiCheckCircle className="size-3.5 shrink-0" />
+                                                    Parametric Monitoring Active. Safe Hours.
+                                                </div>
+                                            ) : (
+                                                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-medium flex items-center gap-2">
+                                                    <FiAlertTriangle className="size-3.5 shrink-0" />
+                                                    Unpaid: {activePayout.reason.replace("Rejected: ", "")}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()
                             ) : (
                                 <div className="space-y-3 animate-pulse">
                                     <div className="flex justify-between items-baseline">
@@ -594,14 +664,18 @@ export default function DashboardPage() {
 
                     {/* Card 6 — Latest Payout Summary */}
                     <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, ...spring }}
-                        className="bg-[#121214] border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[200px]">
+                        onClick={() => latestPayout && setSelectedPayout(latestPayout)}
+                        className="bg-[#121214] border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[200px] cursor-pointer hover:border-white/20 transition-all group"
+                    >
                         <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Latest Payout</h3>
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                Latest Payout <span className="text-[9px] text-primary-400 opacity-0 group-hover:opacity-100 transition-opacity">(View Receipt)</span>
+                            </h3>
                             {latestPayout && (
                                 <span className={`text-[9px] px-2 py-0.5 border rounded font-semibold uppercase tracking-wider ${
                                     latestPayout.status === 'REJECTED'
                                         ? 'text-red-400 bg-red-500/10 border-red-500/25'
-                                        : 'text-primary-400 bg-primary-500/10 border-primary-500/25'
+                                        : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25'
                                 }`}>
                                     {latestPayout.status === 'REJECTED' ? 'Rejected' : 'Approved'}
                                 </span>
@@ -613,19 +687,19 @@ export default function DashboardPage() {
                             <div className="space-y-3">
                                 <div className="flex items-start gap-3">
                                     <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                        latestPayout.status === 'REJECTED' ? 'text-red-400 bg-red-500/10 border border-red-500/20' : 'text-primary-400 bg-primary-500/10 border border-primary-500/20'
+                                        latestPayout.status === 'REJECTED' ? 'text-red-400 bg-red-500/10 border border-red-500/20' : 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
                                     }`}>
                                         {latestPayout.status === 'REJECTED' ? <FiX className="size-4" /> : <FiCloudRain className="size-4" />}
                                     </div>
                                     <div>
-                                        <p className="text-xs font-bold text-white line-clamp-2">{latestPayout.reason}</p>
+                                        <p className="text-xs font-bold text-white line-clamp-2">{getApprovedReasonOnly(latestPayout.reason)}</p>
                                         <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{latestPayout.date}</p>
                                     </div>
                                 </div>
                                 <div className="bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 flex items-center justify-between">
                                     <div>
                                         <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Credit amount</span>
-                                        <span className={`text-base font-bold ${latestPayout.status === 'REJECTED' ? 'text-slate-500' : 'text-primary-400'}`}>
+                                        <span className={`text-base font-bold ${latestPayout.status === 'REJECTED' ? 'text-slate-500' : 'text-emerald-400'}`}>
                                             {latestPayout.status === 'REJECTED' ? '₹0.00' : `+₹${latestPayout.amount.toFixed(2)}`}
                                         </span>
                                     </div>
@@ -666,27 +740,33 @@ export default function DashboardPage() {
                                             <motion.div key={p._id}
                                                 initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
                                                 transition={{ delay: i * 0.05 + 0.4, ...spring }}
+                                                onClick={() => setSelectedPayout(p)}
                                                 className="flex items-center justify-between px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 hover:border-white/10 transition-all group cursor-pointer"
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`size-8 rounded-lg flex items-center justify-center shrink-0 border ${
-                                                        isRejected ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-primary-400 bg-primary-500/10 border-primary-500/20'
+                                                        isRejected ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                                                     }`}>
                                                         {isRejected ? <FiX className="size-3.5" /> : <FiCloudRain className="size-3.5" />}
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2 flex-wrap">
-                                                            <p className="text-xs font-bold text-white leading-tight">{p.reason}</p>
+                                                            <p className="text-xs font-bold text-white leading-tight">{getApprovedReasonOnly(p.reason)}</p>
                                                             {isRejected && (
                                                                 <span className="text-[8px] text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                                                                     Rejected
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{p.date} · {p.disruptedHours} hrs covered</p>
+                                                        <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                                            {p.date} · {p.disruptedHours} hrs covered
+                                                            <span className="text-primary-400 opacity-0 group-hover:opacity-100 transition-all ml-2 font-medium">
+                                                                · View Receipt →
+                                                            </span>
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <span className={`font-bold text-sm shrink-0 ml-4 ${isRejected ? 'text-slate-500' : 'text-primary-400'}`}>
+                                                <span className={`font-bold text-sm shrink-0 ml-4 ${isRejected ? 'text-slate-500' : 'text-emerald-400'}`}>
                                                     {isRejected ? "₹0.00" : `+₹${p.amount.toFixed(2)}`}
                                                 </span>
                                             </motion.div>
@@ -731,6 +811,109 @@ export default function DashboardPage() {
 
                 </div>
             </div>
+
+            {/* Payout Details Modal */}
+            <AnimatePresence>
+                {selectedPayout && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 z-[120] flex items-center justify-center backdrop-blur-md p-4"
+                        onClick={() => setSelectedPayout(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            transition={spring}
+                            className="bg-[#121214] border border-white/10 rounded-2xl p-6 w-full max-w-3xl relative overflow-hidden text-left shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Close Button */}
+                            <button 
+                                onClick={() => setSelectedPayout(null)}
+                                className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors p-1 hover:bg-white/5 rounded-lg"
+                            >
+                                <FiX className="size-5" />
+                            </button>
+
+                            <div className="text-center pb-5 border-b border-white/5 mb-5">
+                                <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block mb-1">Parametric Insurance Receipt</span>
+                                <h3 className="text-base font-bold text-white mb-3">{selectedPayout.date}</h3>
+                                
+                                <div className="inline-flex flex-col items-center">
+                                    <span className={`text-3xl font-extrabold tracking-tight ${selectedPayout.status === 'REJECTED' ? 'text-slate-500' : 'text-emerald-400'}`}>
+                                        {selectedPayout.status === 'REJECTED' ? '₹0.00' : `+₹${selectedPayout.amount}`}
+                                    </span>
+                                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider mt-2 border ${
+                                        selectedPayout.status === 'REJECTED' 
+                                            ? 'text-red-400 bg-red-500/10 border-red-500/20' 
+                                            : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                    }`}>
+                                        {selectedPayout.status === 'REJECTED' ? 'Rejected' : 'Approved'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
+                                {/* Left Column: Approved Windows */}
+                                <div className="space-y-2.5">
+                                    <h4 className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-2">Approved Windows</h4>
+                                    {parseReason(selectedPayout.reason).approved.length > 0 ? (
+                                        <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                            {parseReason(selectedPayout.reason).approved.map((app, idx) => (
+                                                <div key={idx} className="flex items-center justify-between bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-3.5 py-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="size-2 rounded-full bg-emerald-500" />
+                                                        <span className="text-xs font-semibold text-white">{app.type}</span>
+                                                    </div>
+                                                    <span className="text-xs text-emerald-400 font-bold">{app.time}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="h-[120px] md:h-[200px] flex flex-col items-center justify-center border border-white/5 bg-white/[0.01] rounded-xl text-slate-600 text-xs font-medium">
+                                            No approved hours for this day
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Right Column: Exclusions */}
+                                <div className="space-y-2.5">
+                                    <h4 className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-2">Exclusions & Unpaid Shifts</h4>
+                                    {parseReason(selectedPayout.reason).rejected.length > 0 ? (
+                                        <div className="max-h-[250px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                                            {parseReason(selectedPayout.reason).rejected.map((rej, idx) => (
+                                                <div key={idx} className="flex items-start justify-between bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-xs font-semibold text-slate-400 leading-tight">{rej.reason}</span>
+                                                        {rej.time && <span className="text-[10px] text-slate-600 font-semibold">{rej.time}</span>}
+                                                    </div>
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-red-400/80 shrink-0 bg-red-500/5 px-1.5 py-0.5 rounded border border-red-500/10">Unpaid</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="h-[120px] md:h-[200px] flex flex-col items-center justify-center border border-white/5 bg-white/[0.01] rounded-xl text-slate-600 text-xs font-medium">
+                                            No exclusions for this day
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Footer Info */}
+                            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 text-[10px] text-slate-500 font-medium grid grid-cols-2 gap-4">
+                                <div>
+                                    <span className="block text-slate-600 font-semibold uppercase tracking-wider text-[8px] mb-0.5">Claim Hours Covered</span>
+                                    <span className="text-white text-xs font-bold">{selectedPayout.disruptedHours} hrs</span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="block text-slate-600 font-semibold uppercase tracking-wider text-[8px] mb-0.5">Processed Date</span>
+                                    <span className="text-white text-xs font-bold">{new Date(selectedPayout.createdAt || new Date()).toLocaleString('en-IN')}</span>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </AppShell>
     );
 }

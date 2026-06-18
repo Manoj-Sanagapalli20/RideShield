@@ -217,9 +217,17 @@ const processCompensation = async (data) => {
 
     if (allDisruptions.length === 0) {
         console.log(`[User: ${userId}] [NO DATA FOUND] Location clear for ${date}. No disruption events detected by ML.`);
-        const reasonStr = shiftStr 
-            ? `Rejected: Clear weather and no strike disruptions officially detected. (Shift: ${shiftStr})`
-            : `Rejected: Clear weather and no strike disruptions officially detected. (Driver Offline)`;
+        const peakPrecip = results.peak_precipitation || 0.0;
+        let reasonStr;
+        if (peakPrecip > 0.0) {
+            reasonStr = shiftStr
+                ? `Rejected: Peak rainfall was ${peakPrecip.toFixed(2)} mm/hr, which is below the RideShield threshold of 0.5 mm/hr. (Shift: ${shiftStr})`
+                : `Rejected: Peak rainfall was ${peakPrecip.toFixed(2)} mm/hr, which is below the RideShield threshold of 0.5 mm/hr. (Driver Offline)`;
+        } else {
+            reasonStr = shiftStr
+                ? `Rejected: Clear weather and no strike disruptions officially detected. (Shift: ${shiftStr})`
+                : `Rejected: Clear weather and no strike disruptions officially detected. (Driver Offline)`;
+        }
         const rejectEvent = {
             userId,
             email: driverEmail || 'driver@rideshield.com',
@@ -266,6 +274,32 @@ const processCompensation = async (data) => {
 
         let trigger1Hours = 0;
         let trigger2Hours = 0;
+        const slotRejections = [];
+        const successSlots = [];
+
+        // Build a Map of actHour to activity to check for completely offline/missing hours
+        const activityMap = new Map();
+        logData.hourlyActivity.forEach(activity => {
+            const timeSlot = activity.timeSlot || "00:00";
+            const startPart = timeSlot.split('-')[0].trim();
+            let actHour = parseInt(startPart.split(':')[0]);
+            if (startPart.toLowerCase().includes('pm') && actHour < 12) {
+                actHour += 12;
+            } else if (startPart.toLowerCase().includes('am') && actHour === 12) {
+                actHour = 0;
+            }
+            activityMap.set(actHour, activity);
+        });
+
+        const findDisruptionTypeForHour = (hour) => {
+            const d = allDisruptions.find(dis => {
+                const [startStr, endStr] = dis.time.split('-');
+                const startHour = parseInt(startStr.split(':')[0]);
+                const endHour = parseInt(endStr.split(':')[0]);
+                return hour >= startHour && hour < endHour;
+            });
+            return d ? (d.type.charAt(0).toUpperCase() + d.type.slice(1)) : 'Disruption';
+        };
 
         logData.hourlyActivity.forEach(activity => {
             if (activity.isOnline === true) {
@@ -290,14 +324,68 @@ const processCompensation = async (data) => {
                     return; // Skip future hour
                 }
 
+                // Standardize slot name representation for rejections (e.g. 10:00 becomes 10:00-11:00)
+                let slotName = timeSlot;
+                if (!slotName.includes("-")) {
+                    const startHr = parseInt(slotName.split(':')[0]);
+                    const endHr = startHr + 1;
+                    const formatHr = (h) => `${String(h).padStart(2, '0')}:00`;
+                    slotName = `${formatHr(startHr)}-${formatHr(endHr)}`;
+                }
+
+                const rides = activity.ridesAccepted !== undefined ? activity.ridesAccepted : 0;
+
                 if (disruptedHoursSet.has(actHour)) {
-                    const rides = activity.ridesAccepted !== undefined ? activity.ridesAccepted : 0;
                     if (rides === 0) {
                         trigger1Hours++; // Trigger 1: Online but 0 rides accepted
+                        const disType = findDisruptionTypeForHour(actHour);
+                        successSlots.push(`${disType} Disruption (${slotName})`);
                     } else if (rides > 0 && rides <= 1) {
                         trigger2Hours++; // Trigger 2: Online but stuck/delayed (rides <= 1)
+                        const disType = findDisruptionTypeForHour(actHour);
+                        successSlots.push(`${disType} Disruption (${slotName})`);
+                    } else {
+                        const disType = findDisruptionTypeForHour(actHour);
+                        slotRejections.push(`${slotName} rejected (Normal rides during ${disType} Disruption)`);
+                    }
+                } else {
+                    // Only show rejection if the driver accepted <= 1 ride (claiming low rides but no rain)
+                    if (rides <= 1) {
+                        slotRejections.push(`${slotName} rejected (Clear weather)`);
                     }
                 }
+            } else {
+                // If offline during a disruption window, report it as rejected offline
+                const timeSlot = activity.timeSlot || "00:00";
+                const startPart = timeSlot.split('-')[0].trim();
+                let actHour = parseInt(startPart.split(':')[0]);
+                if (startPart.toLowerCase().includes('pm') && actHour < 12) {
+                    actHour += 12;
+                } else if (startPart.toLowerCase().includes('am') && actHour === 12) {
+                    actHour = 0;
+                }
+                if (disruptedHoursSet.has(actHour)) {
+                    let slotName = timeSlot;
+                    if (!slotName.includes("-")) {
+                        const startHr = parseInt(slotName.split(':')[0]);
+                        const endHr = startHr + 1;
+                        const formatHr = (h) => `${String(h).padStart(2, '0')}:00`;
+                        slotName = `${formatHr(startHr)}-${formatHr(endHr)}`;
+                    }
+                    const disType = findDisruptionTypeForHour(actHour);
+                    slotRejections.push(`${slotName} rejected (Offline during ${disType} Disruption)`);
+                }
+            }
+        });
+
+        // Add disrupted hours where the driver had absolutely no logs at all (completely offline)
+        disruptedHoursSet.forEach(disHour => {
+            if (!activityMap.has(disHour)) {
+                const endHr = disHour + 1;
+                const formatHr = (h) => `${String(h).padStart(2, '0')}:00`;
+                const slotName = `${formatHr(disHour)}-${formatHr(endHr)}`;
+                const disType = findDisruptionTypeForHour(disHour);
+                slotRejections.push(`${slotName} rejected (Offline during ${disType} Disruption)`);
             }
         });
 
@@ -321,16 +409,89 @@ const processCompensation = async (data) => {
             console.log(`Calculated Fund:  ₹${payout.toFixed(2)} automatically dispatched!`);
             console.log(`=============================================================\n`);
 
+            let reasonStr = successSlots.join(', ');
+
+            if (slotRejections.length > 0) {
+                reasonStr += `. Rejections: ${slotRejections.join(', ')}`;
+            }
+
+            // --- ML Fraud Check Integration ---
+            let status = 'PROCESSED';
+            let finalPayout = payout;
+            let isFraudBlocked = false;
+            let fraudReason = '';
+
+            // 1. Calculate ordersLast2hr (max sum of rides accepted in any contiguous 2-hour window)
+            let ordersLast2hr = 0;
+            if (logData && logData.hourlyActivity) {
+                const ridesAcceptedList = logData.hourlyActivity.map(h => h.ridesAccepted || 0);
+                if (ridesAcceptedList.length === 1) {
+                    ordersLast2hr = ridesAcceptedList[0];
+                } else if (ridesAcceptedList.length > 1) {
+                    for (let i = 0; i < ridesAcceptedList.length - 1; i++) {
+                        const sum = ridesAcceptedList[i] + ridesAcceptedList[i+1];
+                        if (sum > ordersLast2hr) {
+                            ordersLast2hr = sum;
+                        }
+                    }
+                }
+            }
+
+            // 2. Calculate claimsLast30Days by querying PaymentService
+            let claimsLast30Days = 0;
+            try {
+                const paymentServiceUrl = process.env.PAYMENT_SERVICE_URL || 'http://localhost:5003';
+                const claimsRes = await axios.get(`${paymentServiceUrl}/api/disruption-payouts/${userId}`);
+                const payouts = claimsRes.data.payouts || [];
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                claimsLast30Days = payouts.filter(p => {
+                    const pDate = new Date(p.createdAt || p.timestamp || p.date);
+                    return pDate >= thirtyDaysAgo;
+                }).length;
+            } catch (err) {
+                console.warn(`[User: ${userId}] Could not fetch past claims for fraud check: ${err.message}. Defaulting to 0.`);
+            }
+
+            // 3. Request ML-Service fraud check
+            try {
+                const mlServiceUrl = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+                const gpsLat = results.lat || 16.0145;
+                const gpsLng = results.lng || 80.7828;
+                console.log(`[User: ${userId}] Calling ML-Service /fraud-check with: ordersLast2hr=${ordersLast2hr}, claimsLast30Days=${claimsLast30Days}, amountINR=${payout.toFixed(2)}`);
+                const fraudRes = await axios.post(`${mlServiceUrl}/api/ml/fraud-check`, {
+                    gps: { lat: gpsLat, lng: gpsLng },
+                    ordersLast2hr,
+                    claimsLast30Days,
+                    amountINR: parseFloat(payout.toFixed(2)),
+                    hourOfDay: new Date().getHours(),
+                    deviceType: 'mobile'
+                });
+
+                const fraudData = fraudRes.data;
+                console.log(`[User: ${userId}] Fraud check response: Anomaly Score: ${fraudData.anomalyScore}, Verdict: ${fraudData.verdict}`);
+
+                if (fraudData.verdict === 'flag') {
+                    isFraudBlocked = true;
+                    status = 'REJECTED';
+                    finalPayout = 0;
+                    fraudReason = `Rejected: Fraud/Anomaly detected by ML Risk Engine (Anomaly Score: ${fraudData.anomalyScore})`;
+                    console.warn(`[User: ${userId}] 🚨 TRANSACTION BLOCKED BY FRAUD DETECTION ENGINE! Anomaly Score: ${fraudData.anomalyScore}`);
+                } else if (fraudData.verdict === 'review') {
+                    console.log(`[User: ${userId}] ⚠️ Transaction marked for manual review (Anomaly Score: ${fraudData.anomalyScore}), proceeding with payout.`);
+                }
+            } catch (err) {
+                console.error(`[User: ${userId}] ⚠️ ML-Service fraud check failed: ${err.message}. Proceeding with standard validation.`);
+            }
+
             const payoutEvent = {
                 userId,
                 email: driverEmail || 'driver@rideshield.com',
-                amount: payout.toFixed(2),
-                disruptedHours,
+                amount: finalPayout.toFixed(2),
+                disruptedHours: isFraudBlocked ? 0 : disruptedHours,
                 date,
-                status: 'PROCESSED',
-                reason: allDisruptions
-                    .map(d => `${d.type.charAt(0).toUpperCase() + d.type.slice(1)} Disruption (${d.time})`)
-                    .join(', '),
+                status: status,
+                reason: isFraudBlocked ? fraudReason : reasonStr,
                 timestamp: new Date().toISOString()
             };
 
@@ -339,45 +500,36 @@ const processCompensation = async (data) => {
         } else {
             console.log(`[User: ${userId}] Driver was active but had normal ride counts, or was completely offline during the rain/strike window.`);
             
-            // Format the disruptions string
-            const disruptionStr = allDisruptions
-                .map(d => `${d.type.charAt(0).toUpperCase() + d.type.slice(1)}: ${d.time}`)
-                .join(', ');
-
-            // Check overlap
-            let hasShiftOverlap = false;
-            logData.hourlyActivity.forEach(activity => {
-                if (activity.isOnline === true) {
-                    const timeSlot = activity.timeSlot || "00:00";
-                    const startPart = timeSlot.split('-')[0].trim();
-                    let actHour = parseInt(startPart.split(':')[0]);
-                    if (startPart.toLowerCase().includes('pm') && actHour < 12) {
-                        actHour += 12;
-                    } else if (startPart.toLowerCase().includes('am') && actHour === 12) {
-                        actHour = 0;
-                    }
-
-                    // Check future hour in IST
-                    const istOffset = 5.5 * 60 * 60 * 1000;
-                    const istTime = new Date(Date.now() + istOffset);
-                    const istDateStr = istTime.toISOString().split('T')[0];
-                    const currentIstHour = istTime.getUTCHours();
-
-                    if (date === istDateStr && actHour > currentIstHour) {
-                        return; // Skip future hour
-                    }
-
-                    if (disruptedHoursSet.has(actHour)) {
-                        hasShiftOverlap = true;
-                    }
-                }
-            });
-
             let rejectReason = '';
-            if (!hasShiftOverlap) {
-                rejectReason = `Rejected: Driver was offline / did not log shift activity during the disruption window. (Shift: ${shiftStr}, Disruption: ${disruptionStr})`;
+            if (slotRejections.length > 0) {
+                rejectReason = `Rejected: ${slotRejections.join(', ')}`;
             } else {
-                rejectReason = `Rejected: Normal ride count (rides > 1) accepted during disruption window. (Shift: ${shiftStr}, Disruption: ${disruptionStr})`;
+                // Fallback if slotRejections is empty
+                const disruptionStr = allDisruptions
+                    .map(d => `${d.type.charAt(0).toUpperCase() + d.type.slice(1)}: ${d.time}`)
+                    .join(', ');
+                let hasShiftOverlap = false;
+                logData.hourlyActivity.forEach(activity => {
+                    if (activity.isOnline === true) {
+                        const timeSlot = activity.timeSlot || "00:00";
+                        const startPart = timeSlot.split('-')[0].trim();
+                        let actHour = parseInt(startPart.split(':')[0]);
+                        if (startPart.toLowerCase().includes('pm') && actHour < 12) {
+                            actHour += 12;
+                        } else if (startPart.toLowerCase().includes('am') && actHour === 12) {
+                            actHour = 0;
+                        }
+                        if (disruptedHoursSet.has(actHour)) {
+                            hasShiftOverlap = true;
+                        }
+                    }
+                });
+
+                if (!hasShiftOverlap) {
+                    rejectReason = `Rejected: Driver was offline / did not log shift activity during the disruption window. (Shift: ${shiftStr}, Disruption: ${disruptionStr})`;
+                } else {
+                    rejectReason = `Rejected: Normal ride count (rides > 1) accepted during disruption window. (Shift: ${shiftStr}, Disruption: ${disruptionStr})`;
+                }
             }
 
             const rejectEvent = {
