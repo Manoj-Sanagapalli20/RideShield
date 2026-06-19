@@ -26,7 +26,7 @@ async function startServer() {
     await connectDB();
     await connectRedis();
     await connectRabbitMQ();
-    
+
     // 2. Start Message Consumers
     try {
       await startPaymentConsumer();
@@ -54,15 +54,59 @@ async function startServer() {
     app.get('/api/payments/status/:userId', async (req, res) => {
       try {
         const { userId } = req.params;
-        const record = await Payment.findOne({ userId, status: 'SUCCESS' });
+        const record = await Payment.findOne({ userId, status: { $in: ['SUCCESS', 'PAUSED'] } });
 
         if (record) {
-          res.status(200).json({ hasPlan: true, plan: record.plan });
+          res.status(200).json({ hasPlan: true, plan: record.plan, status: record.status });
         } else {
           res.status(200).json({ hasPlan: false });
         }
       } catch (error) {
         res.status(500).json({ error: 'Failed to check payment status' });
+      }
+    });
+
+    // Update status API (to support pause/unpause)
+    app.post('/api/payments/update-status', async (req, res) => {
+      try {
+        const { userId, status } = req.body;
+        if (!userId || !status) {
+          return res.status(400).json({ error: 'Missing required fields' });
+        }
+        const record = await Payment.findOneAndUpdate(
+          { userId, status: { $in: ['SUCCESS', 'PAUSED'] } },
+          { status },
+          { new: true }
+        );
+        if (record) {
+          res.status(200).json({ success: true, record });
+        } else {
+          res.status(404).json({ error: 'No active plan found to update' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to update policy status' });
+      }
+    });
+
+    // Update premium amount API
+    app.post('/api/payments/update-premium', async (req, res) => {
+      try {
+        const { userId, amount } = req.body;
+        if (!userId || amount === undefined) {
+          return res.status(400).json({ error: 'Missing required fields' });
+        }
+        const record = await Payment.findOneAndUpdate(
+          { userId, status: { $in: ['SUCCESS', 'PAUSED'] } },
+          { amount },
+          { new: true }
+        );
+        if (record) {
+          res.status(200).json({ success: true, record });
+        } else {
+          res.status(404).json({ error: 'No active plan found to update premium' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to update premium' });
       }
     });
 
@@ -85,6 +129,17 @@ async function startServer() {
 
       } catch (error) {
         res.status(500).json({ error: 'Failed to fetch disruption payouts' });
+      }
+    });
+
+    // Get active users for inactivity checks
+    app.get('/api/payments/active-users', async (req, res) => {
+      try {
+        const records = await Payment.find({ status: 'SUCCESS' });
+        const userIds = records.map(r => r.userId);
+        res.status(200).json({ userIds });
+      } catch (e) {
+        res.status(500).json({ error: e.message });
       }
     });
 

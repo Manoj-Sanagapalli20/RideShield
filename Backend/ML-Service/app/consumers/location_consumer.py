@@ -62,6 +62,17 @@ def callback(ch, method, properties, body):
             logger.error(f"Missing required fields. Received: {data}")
             return
 
+        # Cache the worker's last known location for daily 6:00 AM cron lookups (TTL 30 days)
+        try:
+            worker_loc = {
+                "lat": float(lat),
+                "lng": float(lng),
+                "pincode": str(pincode)
+            }
+            redis_client.set(f"worker:{user_id}:location", worker_loc, ttl=86400 * 30)
+        except Exception as e:
+            logger.error(f"Failed to cache worker location in Redis: {e}")
+
         # Check for cached results within 2.5 km first (matching README location radius match spec)
         from ..utils.geo_utils import calculate_distance
         pattern = f"disruptions:{date}:*"

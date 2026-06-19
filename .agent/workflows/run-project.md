@@ -66,61 +66,37 @@ in `c:\RideShield\Backend\NotificationService`
 
 ---
 
-### Step 3 — Start all frontend dev servers (background, in parallel)
+### Step 3 — Start all services concurrently (RECOMMENDED)
 
+You can start all backend, ML, and frontend services concurrently in a single terminal by running:
+```bash
+npm start
 ```
-npm run dev
-```
-in `c:\RideShield\Frontend\UserDashboard\reactjs`   → http://localhost:5173
-
-```
-npm run dev
-```
-in `c:\RideShield\Frontend\DummyRapido\frontend`    → http://localhost:5174
-
-```
-npm run dev
-```
-in `c:\RideShield\Frontend\AdminDashboard`          → http://localhost:5175
+from the root directory `c:\RideShield`.
 
 ---
 
-### Step 4 — Start all backend services (background, in parallel)
+### Step 4 — Run services manually (alternative)
 
-```
-node index.js
-```
-in `c:\RideShield\Backend\AuthService`          → port 5001
+If you prefer to start them manually in separate terminals, run the following:
 
-```
-node index.js
-```
-in `c:\RideShield\Backend\PolicyService`        → port 5002
+#### Frontends:
+*   **User Dashboard** (port 3000):
+    `npm run dev` in `c:\RideShield\Frontend\UserDashboard\reactjs`
+*   **Dummy Rapido Portal** (port 3001):
+    `npm run dev` in `c:\RideShield\Frontend\DummyRapido\frontend`
+*   **Admin Dashboard** (port 5175):
+    `npm run dev` in `c:\RideShield\Frontend\AdminDashboard`
 
-```
-node src/app.js
-```
-in `c:\RideShield\Backend\PaymentService`       → port 5003 (requires STRIPE_SECRET_KEY in .env)
-
-```
-node index.js
-```
-in `c:\RideShield\Backend\AddressPolling`       → port 5004
-
-```
-node index.js
-```
-in `c:\RideShield\Backend\MainService`          → port 5005
-
-```
-node server.js
-```
-in `c:\RideShield\Backend\NotificationService`  → port 3004
-
-```
-node index.js
-```
-in `c:\RideShield\Frontend\DummyRapido\backend` → port 5000 (requires MONGO_URI in .env)
+#### Backends & ML:
+*   **DummyRapido backend** (port 5000): `node index.js` in `c:\RideShield\Frontend\DummyRapido\backend`
+*   **AuthService** (port 5001): `node index.js` in `c:\RideShield\Backend\AuthService`
+*   **PolicyService** (port 5002): `node index.js` in `c:\RideShield\Backend\PolicyService`
+*   **PaymentService** (port 5003): `node src/app.js` in `c:\RideShield\Backend\PaymentService`
+*   **AddressPolling** (port 5004): `node index.js` in `c:\RideShield\Backend\AddressPolling`
+*   **MainService** (port 5005): `node index.js` in `c:\RideShield\Backend\MainService`
+*   **NotificationService** (port 3004): `node server.js` in `c:\RideShield\Backend\NotificationService`
+*   **ML-Service** (port 8000): `python run.py` in `c:\RideShield\Backend\ML-Service`
 
 ---
 
@@ -128,8 +104,8 @@ in `c:\RideShield\Frontend\DummyRapido\backend` → port 5000 (requires MONGO_UR
 
 | App | URL |
 |-----|-----|
-| UserDashboard (main) | http://localhost:5173 |
-| DummyRapido frontend | http://localhost:5174 |
+| UserDashboard (main) | http://localhost:3000 |
+| DummyRapido frontend | http://localhost:3001 |
 | AdminDashboard       | http://localhost:5175 |
 | DummyRapido backend  | http://localhost:5000 |
 | AuthService          | http://localhost:5001 |
@@ -138,3 +114,5 @@ in `c:\RideShield\Frontend\DummyRapido\backend` → port 5000 (requires MONGO_UR
 | AddressPolling       | http://localhost:5004 |
 | MainService          | http://localhost:5005 |
 | NotificationService  | http://localhost:3004 |
+| ML-Service           | http://localhost:8000 |
+

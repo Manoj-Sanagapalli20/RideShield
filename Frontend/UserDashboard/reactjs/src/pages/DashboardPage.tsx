@@ -2,13 +2,14 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     FiShield, FiCloudRain, FiCheckCircle, FiArrowUpRight,
-    FiMapPin, FiX, FiAlertTriangle, FiUser, FiCalendar, FiTrendingUp, FiActivity, FiHelpCircle
+    FiMapPin, FiX, FiAlertTriangle, FiUser, FiCalendar, FiTrendingUp, FiActivity, FiHelpCircle, FiSun, FiWind
 } from "react-icons/fi";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 
 const PAYMENT_SERVICE = "http://localhost:5003";
 const POLICY_SERVICE = "http://localhost:5002";
+const ML_SERVICE = "http://localhost:8000";
 
 interface Payout {
     _id: string;
@@ -17,6 +18,7 @@ interface Payout {
     date: string;
     reason: string;
     status: string;
+    priority?: string;
     createdAt: string;
 }
 
@@ -46,6 +48,15 @@ const parseReason = (reasonStr: string) => {
         };
     }
     
+    // Extract weekly capping reason if present
+    let cappingReason = "";
+    const capMatch = reasonStr.match(/\((Capped by Weekly Payout Limit:.*?)\)/);
+    if (capMatch) {
+        cappingReason = capMatch[1];
+        // Remove capping text from reasonStr so slot matcher executes cleanly
+        reasonStr = reasonStr.replace(/\.?\s*\(Capped by Weekly Payout Limit:.*?\)/g, "").trim();
+    }
+    
     const parts = reasonStr.split('. Rejections: ');
     const approvedPart = parts[0];
     const rejectedPart = parts[1] || "";
@@ -65,6 +76,10 @@ const parseReason = (reasonStr: string) => {
         }
         return { time: "", reason: item.trim() };
     }).filter(x => x.reason) : [];
+    
+    if (cappingReason) {
+        rejected.push({ time: "", reason: cappingReason });
+    }
     
     return { approved, rejected, isFullRejection: false };
 };
@@ -129,6 +144,8 @@ export default function DashboardPage() {
     const [policy, setPolicy] = useState<PolicyData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [lastTriggered, setLastTriggered] = useState("");
+    const [advisory, setAdvisory] = useState<{ severity: string; title: string; advisories: string[]; shiftSuggestion?: string | null; metrics?: Record<string, number> } | null>(null);
+    const [isAdvisoryLoading, setIsAdvisoryLoading] = useState(false);
     const navigate = useNavigate();
 
     const userId = localStorage.getItem("partnerId") || "";
@@ -158,6 +175,20 @@ export default function DashboardPage() {
         } catch (e) { console.error(e); }
         setIsLoading(false);
         return fetchedPayouts;
+    };
+
+    const loadAdvisory = async (lat: number, lng: number, pincode?: string) => {
+        setIsAdvisoryLoading(true);
+        try {
+            const params = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+            if (pincode) params.append("pincode", pincode);
+            const res = await fetch(`${ML_SERVICE}/api/ml/smart-advisory?${params.toString()}`);
+            if (res.ok) {
+                const data = await res.json();
+                setAdvisory(data);
+            }
+        } catch (e) { console.error("Advisory fetch failed:", e); }
+        setIsAdvisoryLoading(false);
     };
 
     const pushLocation = (lat: number, lng: number, dateStr?: string, pc?: string) => {
@@ -224,6 +255,9 @@ export default function DashboardPage() {
                     }
                 }
 
+                // Fetch tomorrow's advisory for the resolved location
+                loadAdvisory(lat!, lon!, pc);
+
                 setAnalysisStage("Contacting weather station via GPS coordinates...");
                 pushLocation(lat!, lon!, date, pc);
 
@@ -287,11 +321,13 @@ export default function DashboardPage() {
                     if (geoData && geoData.success) {
                         const cityVal = geoData.city;
                         const pc = geoData.pincode || "";
+                        loadAdvisory(lat, lon, pc);
                         setSearchParams({ city: cityVal, date: todayStr, lat: String(lat), lng: String(lon), pincode: pc });
                     } else {
                         throw new Error("Reverse geocoding failed");
                     }
                 } catch {
+                    loadAdvisory(lat, lon);
                     setSearchParams({ city: "Live GPS Location", date: todayStr, lat: String(lat), lng: String(lon) });
                 } finally {
                     setIsFetchingLocation(false);
@@ -324,6 +360,48 @@ export default function DashboardPage() {
         "Pro Shield": 49
     };
     const activePremium = policy ? (premiumMap[policy.planName] || 35) : 0;
+
+    // Weekly cap calculation for UI remaining budget display
+    const planNameClean = policy?.planName?.toLowerCase().trim() || "";
+    const weeklyLimitMap: Record<string, number> = {
+        basic: 400,
+        standard: 600,
+        medium: 600,
+        pro: 800,
+        "pro shield": 800
+    };
+    const weeklyLimit = weeklyLimitMap[planNameClean] || 600;
+
+    const getWeeklySpent = () => {
+        if (!payouts || payouts.length === 0) return 0;
+        
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        const day = now.getDay();
+        startOfWeek.setDate(now.getDate() - day);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const processedPayoutsThisWeek = payouts.filter(p => {
+            if (p.status === 'REJECTED') return false;
+            let pDate;
+            if (p.date) {
+                const parts = p.date.split('-');
+                pDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+            } else {
+                pDate = new Date(p.createdAt || p.timestamp || '');
+            }
+            return pDate >= startOfWeek && pDate <= endOfWeek;
+        });
+
+        return processedPayoutsThisWeek.reduce((sum, p) => sum + (p.amount || 0), 0);
+    };
+
+    const weeklySpent = getWeeklySpent();
+    const remainingWeeklyBudget = Math.max(0, weeklyLimit - weeklySpent);
 
     // SVG Circular progress gauge stats
     const radius = 30;
@@ -469,6 +547,28 @@ export default function DashboardPage() {
                                         <span className="text-sm font-semibold text-primary-400">{policy?.planName || "—"}</span>
                                     </div>
                                 </div>
+                                {policy && (
+                                    <div className="flex justify-between items-center mt-2.5 pt-2.5 border-t border-white/5">
+                                        <div>
+                                            <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Weekly Credited</span>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <span className="text-sm font-semibold text-white">₹{weeklySpent.toFixed(2)}</span>
+                                                {weeklySpent > 0 && (
+                                                    <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Credited to UPI</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Remaining Weekly Limit</span>
+                                            <span className="text-sm font-bold text-emerald-400">₹{remainingWeeklyBudget.toFixed(2)} / ₹{weeklyLimit}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                {(policy?.planName?.toLowerCase().trim() === 'pro' || policy?.planName?.toLowerCase().trim() === 'premium') && (
+                                    <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg w-fit">
+                                        <span>⚡ Priority Instant Settlement Active</span>
+                                    </div>
+                                )}
                             </div>
                             <Link to="/policy" className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors font-medium">
                                 View Policy Details <FiArrowUpRight className="size-3.5" />
@@ -718,7 +818,78 @@ export default function DashboardPage() {
                         )}
                     </motion.div>
 
-                    {/* Card 7 — Payout History (wide, bottom row) */}
+                    {/* Card 7 — Smart Work Advisory (full width) */}
+                    <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.33, ...spring }}
+                        className="md:col-span-2 xl:col-span-3 bg-gradient-to-br from-[#0d1117] to-[#121214] border border-white/10 rounded-2xl p-6 relative overflow-hidden"
+                    >
+                        {/* Background glow */}
+                        <div className="absolute -top-16 -right-16 size-48 rounded-full pointer-events-none"
+                            style={{ background: advisory?.severity === 'critical' ? 'rgba(239,68,68,0.06)' : advisory?.severity === 'warning' ? 'rgba(234,179,8,0.06)' : advisory?.severity === 'caution' ? 'rgba(251,146,60,0.06)' : 'rgba(16,185,129,0.06)', filter: 'blur(60px)' }}
+                        />
+                        <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className={`size-9 rounded-xl flex items-center justify-center border ${
+                                        advisory?.severity === 'critical' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
+                                        advisory?.severity === 'warning' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400' :
+                                        advisory?.severity === 'caution' ? 'bg-orange-500/10 border-orange-500/20 text-orange-400' :
+                                        'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                    }`}>
+                                        {advisory?.severity === 'safe' ? <FiSun className="size-4" /> : advisory?.severity === 'critical' ? <FiAlertTriangle className="size-4" /> : <FiWind className="size-4" />}
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block">Smart Work Advisory</span>
+                                        <h3 className="text-sm font-bold text-white">{advisory ? advisory.title : isAdvisoryLoading ? 'Loading tomorrow\'s forecast...' : 'Set location to see advisory'}</h3>
+                                    </div>
+                                </div>
+                                {advisory?.metrics && (
+                                    <div className="hidden md:flex items-center gap-4">
+                                        {[
+                                            { label: 'Peak Rain', value: `${advisory.metrics.peakPrecipitation} mm/hr` },
+                                            { label: 'Max Temp', value: `${advisory.metrics.peakTemperature}°C` },
+                                            { label: 'Peak AQI', value: String(advisory.metrics.peakAqi) },
+                                        ].map(m => (
+                                            <div key={m.label} className="text-right">
+                                                <span className="text-[9px] text-slate-600 uppercase tracking-wider block">{m.label}</span>
+                                                <span className="text-xs font-bold text-slate-300">{m.value}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {isAdvisoryLoading ? (
+                                <div className="flex flex-col gap-2">
+                                    {[1,2].map(i => <div key={i} className="h-9 bg-white/5 rounded-xl animate-pulse" />)}
+                                </div>
+                            ) : advisory ? (
+                                <div className="space-y-2">
+                                    {advisory.advisories.map((msg, idx) => (
+                                        <div key={idx} className={`flex items-start gap-2.5 px-4 py-2.5 rounded-xl border text-sm font-medium ${
+                                            advisory.severity === 'critical' ? 'bg-red-500/5 border-red-500/15 text-red-300' :
+                                            advisory.severity === 'warning' ? 'bg-yellow-500/5 border-yellow-500/15 text-yellow-300' :
+                                            advisory.severity === 'caution' ? 'bg-orange-500/5 border-orange-500/15 text-orange-300' :
+                                            'bg-emerald-500/5 border-emerald-500/15 text-emerald-300'
+                                        }`}>
+                                            <span className="leading-relaxed">{msg}</span>
+                                        </div>
+                                    ))}
+                                    {advisory.shiftSuggestion && (
+                                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500/5 border border-primary-500/20 text-primary-300 text-xs font-semibold">
+                                            <FiCalendar className="size-3.5 shrink-0" />
+                                            {advisory.shiftSuggestion}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="h-16 flex items-center justify-center text-slate-600 text-xs font-semibold border border-white/5 rounded-xl bg-white/[0.01]">
+                                    Simulate a location to receive tomorrow's smart advisory
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+
+                    {/* Card 8 — Payout History (wide, bottom row) */}
                     <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, ...spring }}
                         className="md:col-span-2 bg-[#121214] border border-white/10 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between">
                         <div>
@@ -755,6 +926,11 @@ export default function DashboardPage() {
                                                             {isRejected && (
                                                                 <span className="text-[8px] text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                                                                     Rejected
+                                                                </span>
+                                                            )}
+                                                            {p.priority === 'high' && !isRejected && (
+                                                                <span className="text-[8px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                                                    ⚡ Priority Dispatched
                                                                 </span>
                                                             )}
                                                         </div>

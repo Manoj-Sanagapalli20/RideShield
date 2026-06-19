@@ -10,6 +10,7 @@ interface Payout {
     date: string;
     reason: string;
     status: string;
+    priority?: string;
     createdAt: string;
 }
 
@@ -24,6 +25,15 @@ const parseReason = (reasonStr: string) => {
             rejected: [{ time: "", reason: reasonStr.replace("Rejected: ", "").trim() }],
             isFullRejection: true
         };
+    }
+    
+    // Extract weekly capping reason if present
+    let cappingReason = "";
+    const capMatch = reasonStr.match(/\((Capped by Weekly Payout Limit:.*?)\)/);
+    if (capMatch) {
+        cappingReason = capMatch[1];
+        // Remove capping text from reasonStr so slot matcher executes cleanly
+        reasonStr = reasonStr.replace(/\.?\s*\(Capped by Weekly Payout Limit:.*?\)/g, "").trim();
     }
     
     const parts = reasonStr.split('. Rejections: ');
@@ -45,6 +55,10 @@ const parseReason = (reasonStr: string) => {
         }
         return { time: "", reason: item.trim() };
     }).filter(x => x.reason) : [];
+    
+    if (cappingReason) {
+        rejected.push({ time: "", reason: cappingReason });
+    }
     
     return { approved, rejected, isFullRejection: false };
 };
@@ -142,6 +156,11 @@ export default function ClaimsHistoryPage() {
                                                         Rejected
                                                     </span>
                                                 )}
+                                                {payout.priority === 'high' && !isRejected && (
+                                                     <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                         ⚡ Priority Dispatched
+                                                     </span>
+                                                 )}
                                             </div>
                                             <p className="text-slate-500 text-sm mt-0.5">
                                                 {payout.date}

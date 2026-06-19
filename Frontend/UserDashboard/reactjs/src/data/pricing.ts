@@ -6,7 +6,7 @@ export const pricingData: IPricing[] = [
         price: 20,
         period: "week",
         features: [
-            "Max Payout: ₹250/week",
+            "Max Payout: ₹400/week",
             "Coverage: Environmental only",
             "Zero-touch claim processing"
         ],
@@ -17,7 +17,7 @@ export const pricingData: IPricing[] = [
         price: 35,
         period: "week",
         features: [
-            "Max Payout: ₹350/week",
+            "Max Payout: ₹600/week",
             "Coverage: Environmental + Social",
             "Zero-touch claim processing",
             "Smart disruption alerts"
@@ -29,7 +29,7 @@ export const pricingData: IPricing[] = [
         price: 49,
         period: "week",
         features: [
-            "Max Payout: ₹500/week",
+            "Max Payout: ₹800/week",
             "Coverage: All triggers",
             "Zero-touch claim processing",
             "Smart disruption alerts",

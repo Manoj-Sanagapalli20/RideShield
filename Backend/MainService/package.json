@@ -8,7 +8,9 @@
   "dependencies": {
     "amqplib": "^0.10.3",
     "axios": "^1.6.8",
-    "express": "^4.19.2"
+    "bull": "^4.16.5",
+    "express": "^4.19.2",
+    "redis": "^6.0.0"
   },
   "keywords": [],
   "author": "",

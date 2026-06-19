@@ -1,0 +1,12 @@
+{
+  "name": "rideshield-workspace",
+  "version": "1.0.0",
+  "description": "RideShield microservices workspace",
+  "main": "start.js",
+  "scripts": {
+    "start": "node start.js",
+    "dev": "node start.js"
+  },
+  "author": "",
+  "license": "ISC"
+}

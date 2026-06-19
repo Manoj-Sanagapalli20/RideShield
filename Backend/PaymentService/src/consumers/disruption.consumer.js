@@ -3,18 +3,30 @@ const DisruptionPayout = require('../models/disruption_payout.model');
 
 const startDisruptionConsumer = async () => {
   const channel = getChannel();
-  const queue = 'payment.disruption';
+  const queue = 'payment.disruption_priority';
 
-  await channel.assertQueue(queue, { durable: true });
+  // Set prefetch to 1 so RabbitMQ delivers messages one-by-one,
+  // allowing priority queue ordering to take effect.
+  channel.prefetch(1);
 
-  console.log(`🎧 Payment Service Listening for Disruption Payouts in [${queue}]`);
+  await channel.assertQueue(queue, { 
+    durable: true,
+    arguments: { 'x-max-priority': 10 }
+  });
+
+  console.log(`🎧 Payment Service Listening for Disruption Payouts in [${queue}] (Priority Enabled)`);
 
   channel.consume(queue, async (msg) => {
     if (!msg) return;
 
     try {
       const data = JSON.parse(msg.content.toString());
-      console.log(`📥 Received disruption payout for storage: User ${data.userId} - ₹${data.amount}`);
+      console.log(`📥 Received disruption payout: User ${data.userId} - ₹${data.amount} (Priority: ${data.priority || 'normal'})`);
+
+      // Simulate real-world transaction/payout processing latency (2 seconds)
+      // This also allows visual inspection of priority queue behavior.
+      console.log(`⏳ Processing payout for User ${data.userId}...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Save or update to database (upsert by userId and date to prevent duplicate records)
       await DisruptionPayout.findOneAndUpdate(
@@ -25,6 +37,7 @@ const startDisruptionConsumer = async () => {
           disruptedHours: data.disruptedHours,
           reason: data.reason,
           status: data.status || 'PROCESSED',
+          priority: data.priority || 'normal',
           timestamp: data.timestamp || new Date()
         },
         { upsert: true, new: true }

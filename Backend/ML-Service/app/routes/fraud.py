@@ -7,26 +7,26 @@ router = APIRouter()
 
 
 class FraudRequest(BaseModel):
-    gps: Dict[str, Any]
-    ordersLast2hr: int
-    claimsLast30Days: int
-    # ── New contextual fields ──────────────────────────────────────────────
-    amountINR: float = Field(default=500.0, ge=0, description="Transaction amount in INR")
-    hourOfDay: int = Field(default=12, ge=0, le=23, description="Local hour of transaction (0-23)")
-    deviceType: str = Field(
-        default="mobile",
-        description="Device used: 'mobile' | 'web' | 'pos' | 'unknown'"
-    )
+    gpsZoneVsCellTowerZoneMatch: int = Field(default=1, description="1 if GPS matches Cell Tower region, else 0")
+    accelerometerMotionDuringClaim: float = Field(default=0.8, description="Micro-motion rating (0 to 1)")
+    loginToTriggerGapMinutes: float = Field(default=120.0, description="Time gap between Rapido login and disruption event in minutes")
+    orders3hrBeforeDisruption: int = Field(default=3, description="Rides/orders accepted in the 3 hours preceding the claim")
+    claimsLast30Days: int = Field(default=0, description="Count of claims made by the driver in the last 30 days")
+    neighborClaimsSameWindow: int = Field(default=15, description="Claims from other drivers in the same zone window")
+    registrationCohortSize: int = Field(default=5, description="Drivers registered within same hour/group")
+    deviceFingerprintClusterScore: float = Field(default=0.1, description="Similarity of device attributes (0 to 1)")
 
 
 @router.post("/fraud-check")
 def check_fraud(req: FraudRequest):
     result = fraud_predictor.predict(
-        gps=req.gps,
-        orders_last_2hr=req.ordersLast2hr,
+        gps_zone_vs_cell_tower_zone_match=req.gpsZoneVsCellTowerZoneMatch,
+        accelerometer_motion_during_claim=req.accelerometerMotionDuringClaim,
+        login_to_trigger_gap_minutes=req.loginToTriggerGapMinutes,
+        orders_3hr_before_disruption=req.orders3hrBeforeDisruption,
         claims_last_30_days=req.claimsLast30Days,
-        amount_inr=req.amountINR,
-        hour_of_day=req.hourOfDay,
-        device_type=req.deviceType,
+        neighbor_claims_same_window=req.neighborClaimsSameWindow,
+        registration_cohort_size=req.registrationCohortSize,
+        device_fingerprint_cluster_score=req.deviceFingerprintClusterScore
     )
     return result

@@ -31,6 +31,11 @@ const disruptionPayoutSchema = new mongoose.Schema({
     enum: ['PROCESSED', 'FAILED', 'REJECTED'],
     default: 'PROCESSED'
   },
+  priority: {
+    type: String,
+    enum: ['high', 'normal'],
+    default: 'normal'
+  },
   timestamp: {
     type: Date,
     default: Date.now

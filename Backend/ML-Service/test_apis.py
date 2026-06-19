@@ -89,11 +89,16 @@ def run_tests():
         print(f"Error: {e}")
 
     # 6. Test POST /fraud-check
-    print(f"\n--- Testing POST /fraud-check using resolved coordinates ({lat}, {lng}) ---")
+    print(f"\n--- Testing POST /fraud-check with upgraded 8-feature schema ---")
     fraud_payload = {
-        "gps": {"lat": lat, "lng": lng},
-        "ordersLast2hr": 5,
-        "claimsLast30Days": 2
+        "gpsZoneVsCellTowerZoneMatch": 1,
+        "accelerometerMotionDuringClaim": 0.8,
+        "loginToTriggerGapMinutes": 120.0,
+        "orders3hrBeforeDisruption": 3,
+        "claimsLast30Days": 2,
+        "neighborClaimsSameWindow": 15,
+        "registrationCohortSize": 5,
+        "deviceFingerprintClusterScore": 0.1
     }
     try:
         res = requests.post(f"{BASE_URL}/fraud-check", json=fraud_payload, timeout=5)

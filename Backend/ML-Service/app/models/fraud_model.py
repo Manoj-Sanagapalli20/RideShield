@@ -1,116 +1,75 @@
 """
 Fraud Detection Model — IsolationForest-based anomaly scorer.
-
-Feature vector (8 dimensions):
-  0  orders_last_2hr       — burst ordering rate (high = suspicious)
-  1  claims_last_30_days   — claim history (high = risky)
-  2  amount_inr            — transaction amount (INR)
-  3  is_night              — 1 if hour ∈ [22‒23, 0‒5], else 0 (night txn)
-  4  hour_of_day           — 0‒23
-  5  device_mobile         — 1 if device_type == "mobile"
-  6  device_web            — 1 if device_type == "web"
-  7  device_pos            — 1 if device_type == "pos"
-
-The model is trained on a representative synthetic dataset that encodes
-normal behaviour patterns so that IsolationForest can detect genuine
-anomalies rather than returning a random score.
+Uses real-world physical and cohort metrics to detect spoofing anomalies.
 """
 
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 
-# ─── Known device types ────────────────────────────────────────────────────────
-DEVICE_TYPES = ["mobile", "web", "pos", "unknown"]
-
 
 def _encode_features(
-    orders_last_2hr: int,
+    gps_zone_vs_cell_tower_zone_match: int,
+    accelerometer_motion_during_claim: float,
+    login_to_trigger_gap_minutes: float,
+    orders_3hr_before_disruption: int,
     claims_last_30_days: int,
-    amount_inr: float,
-    hour_of_day: int,
-    device_type: str,
+    neighbor_claims_same_window: int,
+    registration_cohort_size: int,
+    device_fingerprint_cluster_score: float
 ) -> np.ndarray:
-    """Convert raw inputs into a normalised feature vector."""
-    is_night = 1 if (hour_of_day >= 22 or hour_of_day <= 5) else 0
-    dev = device_type.lower().strip() if device_type else "unknown"
-    device_mobile = 1 if dev == "mobile" else 0
-    device_web    = 1 if dev == "web"    else 0
-    device_pos    = 1 if dev == "pos"    else 0
-
+    """Convert raw physical and cohort features into a normalized vector."""
     return np.array([
-        orders_last_2hr,
-        claims_last_30_days,
-        amount_inr,
-        is_night,
-        hour_of_day,
-        device_mobile,
-        device_web,
-        device_pos,
+        float(gps_zone_vs_cell_tower_zone_match),
+        float(accelerometer_motion_during_claim),
+        float(login_to_trigger_gap_minutes),
+        float(orders_3hr_before_disruption),
+        float(claims_last_30_days),
+        float(neighbor_claims_same_window),
+        float(registration_cohort_size),
+        float(device_fingerprint_cluster_score)
     ], dtype=float)
 
 
 def _build_synthetic_dataset(n_normal: int = 600, n_anomaly: int = 60, seed: int = 42):
     """
-    Build a labelled synthetic dataset that represents realistic behaviour.
-
+    Builds a synthetic dataset that represents physical and cohort metrics.
+    
     Normal patterns:
-      - Mobile: 1‒4 orders/2hr, 0‒3 claims, ₹50–₹2 000, mostly daytime
-      - Web   : 1‒3 orders/2hr, 0‒2 claims, ₹100–₹5 000
-      - POS   : 1‒2 orders/2hr, 0‒1 claims, ₹10–₹500
-
-    Anomaly patterns:
-      - Very high order bursts (10‒30), high claims (5‒15), large amounts,
-        mostly at night, or unusual device combos.
+      - Triangulation matches (1), active motion (0.4-1.0), normal login-to-trigger gaps (15m-300m),
+        low claims velocity, normal cohort registrations, and low fingerprint clusters.
+    
+    Anomalous patterns (GPS Spoofers & Rings):
+      - Triangulation mismatches (0), stationary accelerometer (<0.15), timed login gaps (<10m),
+        high claims history, cohort registrations spikes, and high fingerprint clusters.
     """
     rng = np.random.default_rng(seed)
     rows = []
 
-    # ── Normal mobile transactions ──────────────────────────────────────────
-    n = n_normal // 3
-    for _ in range(n):
-        hour = int(rng.integers(6, 22))
+    # ── Normal driver activity ──────────────────────────────────────────
+    for _ in range(n_normal):
         rows.append(_encode_features(
-            orders_last_2hr=int(rng.integers(1, 5)),
-            claims_last_30_days=int(rng.integers(0, 4)),
-            amount_inr=float(rng.uniform(50, 2000)),
-            hour_of_day=hour,
-            device_type="mobile",
-        ))
-
-    # ── Normal web transactions ──────────────────────────────────────────────
-    for _ in range(n):
-        hour = int(rng.integers(8, 22))
-        rows.append(_encode_features(
-            orders_last_2hr=int(rng.integers(1, 4)),
+            gps_zone_vs_cell_tower_zone_match=1,
+            accelerometer_motion_during_claim=float(rng.uniform(0.4, 1.0)),
+            login_to_trigger_gap_minutes=float(rng.uniform(15.0, 300.0)),
+            orders_3hr_before_disruption=int(rng.integers(1, 6)),
             claims_last_30_days=int(rng.integers(0, 3)),
-            amount_inr=float(rng.uniform(100, 5000)),
-            hour_of_day=hour,
-            device_type="web",
+            neighbor_claims_same_window=int(rng.integers(5, 50)),
+            registration_cohort_size=int(rng.integers(1, 15)),
+            device_fingerprint_cluster_score=float(rng.uniform(0.0, 0.2))
         ))
 
-    # ── Normal POS transactions ──────────────────────────────────────────────
-    for _ in range(n_normal - 2 * n):
-        hour = int(rng.integers(9, 21))
+    # ── Anomalous/Spoofing activity ──────────────────────────────────────
+    for _ in range(n_anomaly):
         rows.append(_encode_features(
-            orders_last_2hr=int(rng.integers(1, 3)),
-            claims_last_30_days=int(rng.integers(0, 2)),
-            amount_inr=float(rng.uniform(10, 500)),
-            hour_of_day=hour,
-            device_type="pos",
-        ))
-
-    # ── Anomalous transactions ───────────────────────────────────────────────
-    for i in range(n_anomaly):
-        hour = int(rng.choice([0, 1, 2, 3, 4, 23, 22]))
-        dev  = rng.choice(DEVICE_TYPES)
-        amount_val = float(rng.uniform(8000, 50000)) if (i % 2 == 0) else float(rng.uniform(100, 2000))
-        rows.append(_encode_features(
-            orders_last_2hr=int(rng.integers(10, 31)),
-            claims_last_30_days=int(rng.integers(5, 16)),
-            amount_inr=amount_val,
-            hour_of_day=hour,
-            device_type=dev,
+            gps_zone_vs_cell_tower_zone_match=int(rng.choice([0, 1], p=[0.7, 0.3])),
+            accelerometer_motion_during_claim=float(rng.uniform(0.0, 0.15)),
+            login_to_trigger_gap_minutes=float(rng.uniform(0.0, 10.0)),
+            orders_3hr_before_disruption=int(rng.integers(0, 2)),
+            claims_last_30_days=int(rng.integers(3, 10)),
+            neighbor_claims_same_window=int(rng.integers(0, 4)),
+            registration_cohort_size=int(rng.integers(40, 200)),
+            device_fingerprint_cluster_score=float(rng.uniform(0.7, 1.0))
         ))
 
     return np.array(rows)
@@ -118,10 +77,7 @@ def _build_synthetic_dataset(n_normal: int = 600, n_anomaly: int = 60, seed: int
 
 class FraudModel:
     """
-    IsolationForest anomaly detector for payment fraud.
-
-    The raw IsolationForest score (typically ‑1 to +0.5) is mapped to a
-    [0, 1] anomalyScore where higher → more anomalous.
+    IsolationForest anomaly detector for location spoofing and claim fraud.
     """
 
     def __init__(self):
@@ -130,62 +86,51 @@ class FraudModel:
         X_scaled = self.scaler.fit_transform(X)
         self.model = IsolationForest(
             n_estimators=200,
-            contamination=0.09,   # ~9 % anomaly rate in training data
+            contamination=0.09,
             max_features=1.0,
             random_state=42,
         )
         self.model.fit(X_scaled)
 
-    # ── Internal helpers ────────────────────────────────────────────────────
-
     @staticmethod
     def _iso_score_to_anomaly(raw_score: float) -> float:
         """
-        Convert IsolationForest decision_function score to [0‒1].
-        decision_function returns positive for inliers, negative for outliers.
-        We invert and clip so that anomaly = 1 means "very suspicious".
+        Convert IsolationForest score to [0-1] range.
         """
-        # Typical range: roughly ‑0.3 (anomaly) to +0.3 (normal)
         clipped = float(np.clip(-raw_score, -0.5, 0.5))
-        normalised = (clipped + 0.5) / 1.0   # maps [‑0.5, 0.5] → [0, 1]
+        normalised = (clipped + 0.5) / 1.0
         return round(float(np.clip(normalised, 0.0, 1.0)), 4)
-
-    # ── Public API ──────────────────────────────────────────────────────────
 
     def predict(
         self,
-        gps: dict,
-        orders_last_2hr: int,
+        gps_zone_vs_cell_tower_zone_match: int,
+        accelerometer_motion_during_claim: float,
+        login_to_trigger_gap_minutes: float,
+        orders_3hr_before_disruption: int,
         claims_last_30_days: int,
-        amount_inr: float = 500.0,
-        hour_of_day: int = 12,
-        device_type: str = "mobile",
+        neighbor_claims_same_window: int,
+        registration_cohort_size: int,
+        device_fingerprint_cluster_score: float
     ) -> dict:
         """
-        Returns anomalyScore ∈ [0, 1] and a verdict.
-
-        Parameters
-        ----------
-        gps               : dict with optional lat/lng (currently unused in
-                            the feature vector but kept for future geo-risk)
-        orders_last_2hr   : number of orders placed in last 2 hours
-        claims_last_30_days: insurance/refund claims in last 30 days
-        amount_inr        : transaction amount in INR
-        hour_of_day       : local hour (0‒23)
-        device_type       : "mobile" | "web" | "pos" | "unknown"
+        Predicts anomalyScore ∈ [0, 1] and outputs a decision verdict.
         """
         feat = _encode_features(
-            orders_last_2hr=orders_last_2hr,
+            gps_zone_vs_cell_tower_zone_match=gps_zone_vs_cell_tower_zone_match,
+            accelerometer_motion_during_claim=accelerometer_motion_during_claim,
+            login_to_trigger_gap_minutes=login_to_trigger_gap_minutes,
+            orders_3hr_before_disruption=orders_3hr_before_disruption,
             claims_last_30_days=claims_last_30_days,
-            amount_inr=amount_inr,
-            hour_of_day=hour_of_day,
-            device_type=device_type,
+            neighbor_claims_same_window=neighbor_claims_same_window,
+            registration_cohort_size=registration_cohort_size,
+            device_fingerprint_cluster_score=device_fingerprint_cluster_score
         ).reshape(1, -1)
 
         feat_scaled = self.scaler.transform(feat)
         raw = float(self.model.decision_function(feat_scaled)[0])
         anomaly_score = self._iso_score_to_anomaly(raw)
 
+        # composite score limits
         if anomaly_score >= 0.55:
             verdict = "flag"
         elif anomaly_score >= 0.30:
@@ -197,13 +142,15 @@ class FraudModel:
             "anomalyScore": anomaly_score,
             "verdict": verdict,
             "features": {
-                "ordersLast2hr": orders_last_2hr,
+                "gpsZoneVsCellTowerZoneMatch": gps_zone_vs_cell_tower_zone_match,
+                "accelerometerMotionDuringClaim": accelerometer_motion_during_claim,
+                "loginToTriggerGapMinutes": login_to_trigger_gap_minutes,
+                "orders3hrBeforeDisruption": orders_3hr_before_disruption,
                 "claimsLast30Days": claims_last_30_days,
-                "amountINR": amount_inr,
-                "hourOfDay": hour_of_day,
-                "deviceType": device_type,
-                "isNightTransaction": bool(hour_of_day >= 22 or hour_of_day <= 5),
-            },
+                "neighborClaimsSameWindow": neighbor_claims_same_window,
+                "registrationCohortSize": registration_cohort_size,
+                "deviceFingerprintClusterScore": device_fingerprint_cluster_score
+            }
         }
 
 

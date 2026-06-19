@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes.disruption import router as disruption_router
 from .routes.risk import router as risk_router
 from .routes.fraud import router as fraud_router
+from .routes.advisory import router as advisory_router
 from .consumers.location_consumer import run_consumer_in_background
 
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,7 @@ app.add_middleware(
 app.include_router(disruption_router, prefix="/api/ml", tags=["Disruptions"])
 app.include_router(risk_router, prefix="/api/ml", tags=["Risk"])
 app.include_router(fraud_router, prefix="/api/ml", tags=["Fraud"])
+app.include_router(advisory_router, prefix="/api/ml", tags=["Advisory"])
 
 @app.on_event("startup")
 def startup_event():
