@@ -61,6 +61,12 @@ const services = [
     cwd: "Frontend/DummyRapido/frontend",
     command: "npm",
     args: ["run", "dev"]
+  },
+  {
+    name: "admin-dashboard",
+    cwd: "Frontend/AdminDashboard",
+    command: "npm",
+    args: ["run", "dev"]
   }
 ];
 

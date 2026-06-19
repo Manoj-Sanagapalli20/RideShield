@@ -28,7 +28,7 @@ const disruptionPayoutSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['PROCESSED', 'FAILED', 'REJECTED'],
+    enum: ['REVIEW', 'PROCESSED', 'FAILED', 'REJECTED'],
     default: 'PROCESSED'
   },
   priority: {

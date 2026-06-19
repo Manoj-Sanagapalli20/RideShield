@@ -57,7 +57,7 @@ async function startServer() {
         const record = await Payment.findOne({ userId, status: { $in: ['SUCCESS', 'PAUSED'] } });
 
         if (record) {
-          res.status(200).json({ hasPlan: true, plan: record.plan, status: record.status });
+          res.status(200).json({ hasPlan: true, plan: record.plan, status: record.status, amount: record.amount });
         } else {
           res.status(200).json({ hasPlan: false });
         }
@@ -129,6 +129,151 @@ async function startServer() {
 
       } catch (error) {
         res.status(500).json({ error: 'Failed to fetch disruption payouts' });
+      }
+    });
+
+    // Admin: Fetch all disruption payouts
+    app.get('/api/admin/payouts', async (req, res) => {
+      try {
+        const { status } = req.query;
+        const filter = {};
+        if (status) {
+          filter.status = status.toUpperCase();
+        }
+        const payouts = await DisruptionPayout.find(filter).sort({ date: -1, createdAt: -1 });
+        res.status(200).json({ payouts });
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch administrative payouts list: ' + error.message });
+      }
+    });
+
+    // Admin: Update payout status (approve/reject review claims)
+    app.post('/api/admin/payouts/update-status', async (req, res) => {
+      try {
+        const { id, status } = req.body;
+        if (!id || !status) {
+          return res.status(400).json({ error: 'Missing required fields (id, status)' });
+        }
+        
+        const normalizedStatus = status.toUpperCase();
+        if (normalizedStatus !== 'PROCESSED' && normalizedStatus !== 'REJECTED') {
+          return res.status(400).json({ error: 'Invalid status. Must be PROCESSED or REJECTED' });
+        }
+
+        const payout = await DisruptionPayout.findByIdAndUpdate(
+          id,
+          { status: normalizedStatus },
+          { new: true }
+        );
+
+        if (!payout) {
+          return res.status(404).json({ error: 'Payout record not found' });
+        }
+
+        console.log(`[Admin] Claim ${id} for User ${payout.userId} updated to ${normalizedStatus}`);
+
+        // If approved (PROCESSED), publish the event to notify the driver via NotificationService
+        if (normalizedStatus === 'PROCESSED') {
+          try {
+            const { getChannel } = require('./utils/rabbitmq');
+            const channel = getChannel();
+            const payload = {
+              userId: payout.userId,
+              email: payout.email || 'driver@rideshield.com',
+              amount: payout.amount,
+              disruptedHours: payout.disruptedHours,
+              date: payout.date,
+              status: normalizedStatus,
+              reason: payout.reason,
+              priority: payout.priority || 'normal',
+              timestamp: new Date().toISOString()
+            };
+            
+            await channel.assertExchange('disruption_payout_fanout', 'fanout', { durable: true });
+            channel.publish('disruption_payout_fanout', '', Buffer.from(JSON.stringify(payload)), {
+              persistent: true
+            });
+            console.log(`📡 [Admin] Published approved payout event to disruption_payout_fanout for user ${payout.userId}`);
+          } catch (rabbitErr) {
+            console.error('[Admin] Failed to publish RabbitMQ notification for approved payout:', rabbitErr.message);
+          }
+        }
+
+        res.status(200).json({ success: true, payout });
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to update payout status: ' + error.message });
+      }
+    });
+
+    // Admin: Get system-wide analytics (loss ratio, total collected, total paid)
+    app.get('/api/admin/analytics', async (req, res) => {
+      try {
+        const activeUsersCount = await Payment.distinct('userId', { status: { $in: ['SUCCESS', 'PAUSED'] } });
+        const allPayments = await Payment.find({ status: { $in: ['SUCCESS', 'PAUSED'] } });
+        const totalPremiums = allPayments.reduce((sum, p) => sum + p.amount, 0);
+
+        const allPayouts = await DisruptionPayout.find({ status: 'PROCESSED' });
+        const totalClaimsPaid = allPayouts.reduce((sum, p) => sum + p.amount, 0);
+
+        const pendingReviewsCount = await DisruptionPayout.countDocuments({ status: 'REVIEW' });
+
+        const lossRatio = totalPremiums > 0 ? (totalClaimsPaid / totalPremiums) * 100 : 0;
+
+        res.status(200).json({
+          activeDriversCount: activeUsersCount.length,
+          totalPremiumsCollected: parseFloat(totalPremiums.toFixed(2)),
+          totalClaimsPaid: parseFloat(totalClaimsPaid.toFixed(2)),
+          lossRatio: parseFloat(lossRatio.toFixed(2)),
+          pendingReviewsCount
+        });
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch admin analytics: ' + error.message });
+      }
+    });
+
+    // Admin: Fetch NewsAPI strike/curfew alerts for operational cities
+    app.get('/api/admin/news-alerts', async (req, res) => {
+      try {
+        const { date } = req.query;
+        const getIstToday = () => {
+          const istTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+          return istTime.getFullYear() + '-' + String(istTime.getMonth() + 1).padStart(2, '0') + '-' + String(istTime.getDate()).padStart(2, '0');
+        };
+        const targetDate = date || getIstToday();
+        const cities = ['Vijayawada', 'Guntur', 'Visakhapatnam'];
+        const axios = require('axios');
+        const mlServiceUrl = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+        
+        const allAlerts = [];
+        for (const city of cities) {
+          try {
+            const newsRes = await axios.get(`${mlServiceUrl}/api/ml/news-alerts?city=${city}&date=${targetDate}`);
+            if (newsRes.data && newsRes.data.success && newsRes.data.alerts) {
+              newsRes.data.alerts.forEach(article => {
+                allAlerts.push({
+                  city,
+                  ...article
+                });
+              });
+            }
+          } catch (cityErr) {
+            console.warn(`[Admin News] Failed to fetch news for ${city}:`, cityErr.message);
+          }
+        }
+        
+        res.status(200).json({ success: true, alerts: allAlerts });
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch news alerts: ' + error.message });
+      }
+    });
+
+    // Admin: Fetch all driver subscriptions
+    app.get('/api/admin/drivers', async (req, res) => {
+      try {
+        const drivers = await Payment.find().sort({ createdAt: -1 });
+        res.status(200).json({ success: true, drivers });
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch driver policies list: ' + error.message });
       }
     });
 

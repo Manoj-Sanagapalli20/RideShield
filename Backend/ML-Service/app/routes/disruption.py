@@ -126,3 +126,33 @@ def reverse_geocode(lat: float, lng: float):
     }
 
 
+@router.get("/news-alerts")
+def get_news_alerts(city: str, date: str):
+    import logging
+    logger = logging.getLogger(__name__)
+    from ..services.news_service import get_local_news
+    
+    try:
+        geo_res = geocode_city(city)
+        if geo_res.get("success"):
+            lat = geo_res["lat"]
+            lng = geo_res["lng"]
+            pincode = geo_res.get("pincode", "")
+            
+            articles = get_local_news(lat=lat, lng=lng, date=date, pincode=pincode)
+            return {
+                "success": True,
+                "city": city,
+                "date": date,
+                "alerts": articles
+            }
+    except Exception as e:
+        logger.error(f"Failed to fetch news alerts for city {city}: {e}")
+        
+    return {
+        "success": False,
+        "alerts": [],
+        "error": f"Failed to retrieve news alerts for {city}."
+    }
+
+

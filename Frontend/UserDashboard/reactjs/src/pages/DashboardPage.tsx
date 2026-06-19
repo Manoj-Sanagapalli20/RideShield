@@ -26,6 +26,7 @@ interface PolicyData {
     planName: string;
     dailyWage: number;
     status: string;
+    premiumAmount?: number;
 }
 
 const spring = { type: "spring" as const, stiffness: 280, damping: 60 };
@@ -359,7 +360,7 @@ export default function DashboardPage() {
         "Pro": 49,
         "Pro Shield": 49
     };
-    const activePremium = policy ? (premiumMap[policy.planName] || 35) : 0;
+    const activePremium = policy ? (policy.premiumAmount || premiumMap[policy.planName] || 35) : 0;
 
     // Weekly cap calculation for UI remaining budget display
     const planNameClean = policy?.planName?.toLowerCase().trim() || "";

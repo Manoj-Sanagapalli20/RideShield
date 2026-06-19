@@ -3,8 +3,8 @@ const { sendEmail } = require('../services/emailService');
 const handleDisruptionPayout = async (data) => {
   const { userId, email, amount, disruptedHours, date, reason } = data;
   
-  if (data.status === 'REJECTED') {
-    console.log(`ℹ️ Skipping email notification for REJECTED claim for user ${userId} on ${date}`);
+  if (data.status === 'REJECTED' || data.status === 'REVIEW') {
+    console.log(`ℹ️ Skipping email notification for ${data.status} claim for user ${userId} on ${date}`);
     return;
   }
   

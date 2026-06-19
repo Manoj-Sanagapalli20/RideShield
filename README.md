@@ -350,8 +350,8 @@ Payout is capped at the weekly coverage limit of the chosen plan.
 
 | Plan | Weekly Premium | Max Weekly Payout | Coverage |
 |---|---|---|---|
-| Basic | ₹20/week | ₹300/week | Environmental only |
-| Standard | ₹35/week | ₹500/week | Environmental + Social |
+| Basic | ₹20/week | ₹400/week | Environmental only |
+| Standard | ₹35/week | ₹600/week | Environmental + Social |
 | Pro | ₹49/week | ₹800/week | All triggers + priority payout |
 
 **Dynamic Pricing:** The ML Risk Engine adjusts the premium up or down by ±₹15 based on the worker's zone risk score (flood-prone areas pay more, historically safe zones pay less).

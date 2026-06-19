@@ -74,12 +74,16 @@ app.post('/api/address/update', (req, res) => {
         return res.status(400).json({ error: "Missing required location data" });
     }
 
+    const getIstToday = () => {
+        const istTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        return istTime.getFullYear() + '-' + String(istTime.getMonth() + 1).padStart(2, '0') + '-' + String(istTime.getDate()).padStart(2, '0');
+    };
     const payload = {
         userId,
         lat,
         lng,
         pincode: pincode || "000000",
-        date: req.body.date || new Date().toISOString().split('T')[0],
+        date: req.body.date || getIstToday(),
         extraData: data || {}
     };
 

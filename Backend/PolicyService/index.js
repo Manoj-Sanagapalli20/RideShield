@@ -111,7 +111,7 @@ app.get('/api/policy/user/:userId', async (req, res) => {
       `${paymentServiceUrl}/api/payments/status/${userId}`
     );
 
-    const { hasPlan, plan, status } = paymentRes.data;
+    const { hasPlan, plan, status, amount } = paymentRes.data;
 
     if (!hasPlan) {
       return res.status(404).json({ message: 'No active policy found' });
@@ -126,12 +126,21 @@ app.get('/api/policy/user/:userId', async (req, res) => {
       'Premium': 1000
     };
 
+    const basePriceMap = {
+      'Basic': 20,
+      'Standard': 35,
+      'Pro': 49,
+      'Pro Shield': 49
+    };
+
     const dailyWage = wageMap[plan] || 600;
+    const premiumAmount = amount || basePriceMap[plan] || 35;
 
     res.status(200).json({
       planName: plan,
       dailyWage,
-      status: status === 'PAUSED' ? 'Paused' : 'Active'
+      status: status === 'PAUSED' ? 'Paused' : 'Active',
+      premiumAmount
     });
 
   } catch (error) {
@@ -240,9 +249,10 @@ app.post('/api/policy/cron/inactivity-check', async (req, res) => {
     const getPast14Dates = () => {
       const dates = [];
       for (let i = 1; i <= 14; i++) {
-        const d = new Date();
+        const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
         d.setDate(d.getDate() - i);
-        dates.push(d.toISOString().split('T')[0]);
+        const dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        dates.push(dStr);
       }
       return dates;
     };

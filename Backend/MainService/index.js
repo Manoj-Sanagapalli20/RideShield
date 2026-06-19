@@ -88,10 +88,10 @@ const runWeeklyPremiumAdjustments = async () => {
 const runDailyPayouts = async (targetDateStr) => {
     let dateStr = targetDateStr;
     if (!dateStr) {
-        // Calculate yesterday's date (local timezone)
-        const d = new Date();
-        d.setDate(d.getDate() - 1);
-        dateStr = d.toISOString().split('T')[0];
+        // Calculate yesterday's date in Asia/Kolkata timezone
+        const nowInIst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        nowInIst.setDate(nowInIst.getDate() - 1);
+        dateStr = nowInIst.getFullYear() + '-' + String(nowInIst.getMonth() + 1).padStart(2, '0') + '-' + String(nowInIst.getDate()).padStart(2, '0');
     }
     console.log(`[Cron] Executing daily claims processing for date: ${dateStr}`);
 
@@ -358,10 +358,9 @@ const processCompensation = async (data) => {
                         slotHour = 0;
                     }
 
-                    const istOffset = 5.5 * 60 * 60 * 1000;
-                    const istTime = new Date(Date.now() + istOffset);
-                    const istDateStr = istTime.toISOString().split('T')[0];
-                    const currentIstHour = istTime.getUTCHours();
+                    const istTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+                    const istDateStr = istTime.getFullYear() + '-' + String(istTime.getMonth() + 1).padStart(2, '0') + '-' + String(istTime.getDate()).padStart(2, '0');
+                    const currentIstHour = istTime.getHours();
 
                     if (date === istDateStr && slotHour > currentIstHour) {
                         return; // Skip future shift hour
@@ -482,10 +481,9 @@ const processCompensation = async (data) => {
                 }
 
                 // Check future hour in IST
-                const istOffset = 5.5 * 60 * 60 * 1000;
-                const istTime = new Date(Date.now() + istOffset);
-                const istDateStr = istTime.toISOString().split('T')[0];
-                const currentIstHour = istTime.getUTCHours();
+                const istTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+                const istDateStr = istTime.getFullYear() + '-' + String(istTime.getMonth() + 1).padStart(2, '0') + '-' + String(istTime.getDate()).padStart(2, '0');
+                const currentIstHour = istTime.getHours();
 
                 if (date === istDateStr && actHour > currentIstHour) {
                     return; // Skip future hour
