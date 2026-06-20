@@ -167,11 +167,17 @@ app.post('/api/policy/select-plan', async (req, res) => {
       // 1. Fetch Partner's City/Address
       const profileRes = await axios.get(`${dummyRapidoUrl}/api/partners/profile/${partnerId}`);
       if (profileRes.data && profileRes.data.partner) {
-        const city = profileRes.data.partner.address || 'Vijayawada';
+        const city = profileRes.data.partner.address;
+        if (!city) {
+          throw new Error(`Partner profile for ${partnerId} is missing address.`);
+        }
         
         // 2. Resolve geocode
         const geocodeRes = await axios.get(`${mlServiceUrl}/api/ml/geocode?city=${encodeURIComponent(city)}`);
-        const pincode = (geocodeRes.data && geocodeRes.data.pincode) || '520001';
+        const pincode = geocodeRes.data && geocodeRes.data.pincode;
+        if (!pincode) {
+          throw new Error(`Pincode could not be resolved for city: ${city}`);
+        }
         
         // 3. Query ML-Service risk-score
         const riskRes = await axios.post(`${mlServiceUrl}/api/ml/risk-score`, {
@@ -325,13 +331,20 @@ app.post('/api/policy/cron/weekly-premium-adjustment', async (req, res) => {
         // A. Fetch driver profile to resolve city
         const profileRes = await axios.get(`${dummyRapidoUrl}/api/partners/profile/${userId}`);
         if (!profileRes.data || !profileRes.data.partner) continue;
-        const city = profileRes.data.partner.address || 'Vijayawada';
+        const city = profileRes.data.partner.address;
+        if (!city) {
+          throw new Error(`Driver profile is missing address`);
+        }
 
         // B. Fetch geocode coordinates
         const geocodeRes = await axios.get(`${mlServiceUrl}/api/ml/geocode?city=${encodeURIComponent(city)}`);
-        const lat = (geocodeRes.data && geocodeRes.data.lat) || 16.0145;
-        const lng = (geocodeRes.data && geocodeRes.data.lng) || 80.7828;
-        const pincode = (geocodeRes.data && geocodeRes.data.pincode) || '520001';
+        const lat = geocodeRes.data && geocodeRes.data.lat;
+        const lng = geocodeRes.data && geocodeRes.data.lng;
+        const pincode = geocodeRes.data && geocodeRes.data.pincode;
+
+        if (lat === undefined || lng === undefined || !pincode) {
+          throw new Error(`Could not resolve coordinates or pincode for city: ${city}`);
+        }
 
         // C. Fetch weather advisory for forecasts
         const advisoryRes = await axios.get(`${mlServiceUrl}/api/ml/smart-advisory?lat=${lat}&lng=${lng}&pincode=${pincode}`);

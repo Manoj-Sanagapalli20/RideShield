@@ -92,6 +92,21 @@ exports.getDailyLog = async (req, res) => {
   try {
     const { partnerId, date } = req.params;
     
+    const istTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const istDateStr = istTime.getFullYear() + '-' + String(istTime.getMonth() + 1).padStart(2, '0') + '-' + String(istTime.getDate()).padStart(2, '0');
+
+    if (date > istDateStr) {
+      return res.status(200).json({
+        log: {
+          partner: partnerId,
+          date,
+          totalRides: 0,
+          totalEarnings: 0,
+          hourlyActivity: []
+        }
+      });
+    }
+
     // We look up the partner first since DailyLog ties to ObjectId
     const partner = await Partner.findOne({ partnerId });
     let log = null;
@@ -107,16 +122,7 @@ exports.getDailyLog = async (req, res) => {
           date, 
           totalRides: 0, 
           totalEarnings: 0, 
-          hourlyActivity: [
-            { timeSlot: "10:00", isOnline: true, ridesAccepted: 0, earnings: 0 },
-            { timeSlot: "11:00", isOnline: true, ridesAccepted: 0, earnings: 0 },
-            { timeSlot: "12:00", isOnline: false, ridesAccepted: 0, earnings: 0 },
-            { timeSlot: "14:00", isOnline: true, ridesAccepted: 0, earnings: 0 },
-            { timeSlot: "15:00", isOnline: true, ridesAccepted: 0, earnings: 0 },
-            { timeSlot: "16:00", isOnline: true, ridesAccepted: 0, earnings: 0 },
-            { timeSlot: "17:00", isOnline: true, ridesAccepted: 0, earnings: 0 },
-            { timeSlot: "18:00", isOnline: true, ridesAccepted: 0, earnings: 0 }
-          ] 
+          hourlyActivity: [] 
         } 
       });
     }

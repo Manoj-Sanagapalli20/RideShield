@@ -151,15 +151,19 @@ export default function ClaimsHistoryPage() {
                                         <div>
                                             <div className="flex items-center gap-2">
                                                 <p className="text-white font-medium group-hover:text-primary-400 transition-colors">{getApprovedReasonOnly(payout.reason)}</p>
-                                                {isRejected && (
-                                                    <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full font-medium">
-                                                        Rejected
-                                                    </span>
-                                                )}
-                                                {payout.priority === 'high' && !isRejected && (
-                                                     <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
-                                                         ⚡ Priority Dispatched
+                                                 {isRejected ? (
+                                                     <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                         Rejected
                                                      </span>
+                                                 ) : payout.status === 'REVIEW' ? (
+                                                     <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                         Under Review
+                                                     </span>
+                                                 ) : null}
+                                                 {payout.priority === 'high' && !isRejected && payout.status !== 'REVIEW' && (
+                                                      <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                          ⚡ Priority Dispatched
+                                                      </span>
                                                  )}
                                             </div>
                                             <p className="text-slate-500 text-sm mt-0.5">
@@ -171,9 +175,9 @@ export default function ClaimsHistoryPage() {
                                         </div>
                                         <div className="text-right flex items-center gap-3">
                                             <div>
-                                                <p className={isRejected ? "text-slate-500 font-semibold text-sm" : "text-emerald-400 font-semibold text-sm"}>
-                                                    {isRejected ? "₹0.00" : `+₹${payout.amount.toFixed(2)}`}
-                                                </p>
+                                                 <p className={isRejected ? "text-slate-500 font-semibold text-sm" : payout.status === 'REVIEW' ? "text-amber-400 font-semibold text-sm" : "text-emerald-400 font-semibold text-sm"}>
+                                                     {isRejected ? "₹0.00" : `+₹${payout.amount.toFixed(2)}`}
+                                                 </p>
                                                 <p className="text-[10px] text-slate-500 mt-0.5">
                                                     {payout.disruptedHours} hrs covered
                                                 </p>
@@ -215,16 +219,18 @@ export default function ClaimsHistoryPage() {
                                 <h3 className="text-base font-bold text-white mb-3">{selectedPayout.date}</h3>
                                 
                                 <div className="inline-flex flex-col items-center">
-                                    <span className={`text-3xl font-extrabold tracking-tight ${selectedPayout.status === 'REJECTED' ? 'text-slate-500' : 'text-emerald-400'}`}>
-                                        {selectedPayout.status === 'REJECTED' ? '₹0.00' : `+₹${selectedPayout.amount}`}
-                                    </span>
-                                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider mt-2 border ${
-                                        selectedPayout.status === 'REJECTED' 
-                                            ? 'text-red-400 bg-red-500/10 border-red-500/20' 
-                                            : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                                    }`}>
-                                        {selectedPayout.status === 'REJECTED' ? 'Rejected' : 'Approved'}
-                                    </span>
+                                     <span className={`text-3xl font-extrabold tracking-tight ${selectedPayout.status === 'REJECTED' ? 'text-slate-500' : selectedPayout.status === 'REVIEW' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                         {selectedPayout.status === 'REJECTED' ? '₹0.00' : `+₹${selectedPayout.amount}`}
+                                     </span>
+                                     <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider mt-2 border ${
+                                         selectedPayout.status === 'REJECTED' 
+                                             ? 'text-red-400 bg-red-500/10 border-red-500/20' 
+                                             : selectedPayout.status === 'REVIEW'
+                                                 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                                                 : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                     }`}>
+                                         {selectedPayout.status === 'REJECTED' ? 'Rejected' : selectedPayout.status === 'REVIEW' ? 'Reviewing' : 'Approved'}
+                                     </span>
                                 </div>
                             </div>
 

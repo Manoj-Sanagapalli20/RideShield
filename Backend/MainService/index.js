@@ -16,17 +16,20 @@ try {
 }
 
 const express = require('express');
+const cors = require('cors');
 const amqp = require('amqplib');
 const axios = require('axios');
 const redis = require('redis');
 const Queue = require('bull');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 const PORT = 5005;
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const redisClient = redis.createClient({ url: redisUrl });
+redisClient.on('error', (err) => console.error('MainService Redis Client Error:', err.message || err));
 redisClient.connect().then(() => {
     console.log("✅ MainService connected to Redis for daily cron & social overrides");
 }).catch(err => {
@@ -294,25 +297,30 @@ const processCompensation = async (data) => {
     // 1. Basic Plan covers rain and heat only.
     // 2. Standard/Medium Plan covers rain, heat, pollution (AQI), strike, and curfew.
     // 3. Pro/Premium Plan covers rain, heat, pollution (AQI), strike, and curfew + priority payout.
-    const rawWeather = disruptionsByType.weather || [];
+    let rawWeather = [...(disruptionsByType.weather || [])];
     let rawSocial = [...(disruptionsByType.social || [])];
 
     // Fetch Zone Manager confirmations from Redis (Edge Case 3)
     try {
-        const overrideKey = `confirmed-social:${date}:${results.zone}`;
-        const overrideStr = await redisClient.get(overrideKey);
-        if (overrideStr) {
-            const override = JSON.parse(overrideStr);
-            const exists = rawSocial.some(s => s.type === override.type);
-            if (!exists) {
-                rawSocial.push({
-                    time: "00:00-24:00", // Full day impact
-                    type: override.type,
-                    level: "heavy",
-                    source: "Zone Manager Override",
-                    title: `Zone Manager manual confirmation: [${override.type.toUpperCase()}] active.`
-                });
-                console.log(`[User: ${userId}] Zone Manager override merged for user: added social trigger [${override.type}]`);
+        const zoneName = results.zone ? results.zone.toLowerCase().trim() : '';
+        if (zoneName) {
+            const overrideKey = `confirmed-social:${date}:${zoneName}`;
+            const overrideStr = await redisClient.get(overrideKey);
+            if (overrideStr) {
+                const override = JSON.parse(overrideStr);
+                const isWeather = (override.type === 'rain' || override.type === 'heat');
+                const targetArray = isWeather ? rawWeather : rawSocial;
+                const exists = targetArray.some(s => s.type === override.type);
+                if (!exists) {
+                    targetArray.push({
+                        time: "00:00-24:00", // Full day impact
+                        type: override.type,
+                        level: "heavy",
+                        source: "Zone Manager Override",
+                        title: `Zone Manager manual confirmation: [${override.type.toUpperCase()}] active.`
+                    });
+                    console.log(`[User: ${userId}] Zone Manager override merged for user: added ${isWeather ? 'weather' : 'social'} trigger [${override.type}]`);
+                }
             }
         }
     } catch (overrideErr) {
@@ -362,6 +370,10 @@ const processCompensation = async (data) => {
                     const istDateStr = istTime.getFullYear() + '-' + String(istTime.getMonth() + 1).padStart(2, '0') + '-' + String(istTime.getDate()).padStart(2, '0');
                     const currentIstHour = istTime.getHours();
 
+                    if (date > istDateStr) {
+                        return; // Skip future date shift slots
+                    }
+
                     if (date === istDateStr && slotHour > currentIstHour) {
                         return; // Skip future shift hour
                     }
@@ -378,6 +390,22 @@ const processCompensation = async (data) => {
 
     if (!logPullSuccess) {
         console.error(`[User: ${userId}] Skipping compensation check due to Rapido log pull failure.`);
+        return;
+    }
+
+    if (!logData || !logData.hourlyActivity || onlineHoursList.length === 0) {
+        console.log(`[User: ${userId}] Rapido returned zero hours logged. No payout required.`);
+        const rejectEvent = {
+            userId,
+            email: driverEmail || 'driver@rideshield.com',
+            amount: "0.00",
+            disruptedHours: 0,
+            date,
+            status: 'REJECTED',
+            reason: 'Rejected: Driver was offline / did not log shift activity for the day.',
+            timestamp: new Date().toISOString()
+        };
+        publishToPaymentQueue(rejectEvent);
         return;
     }
 
@@ -402,22 +430,6 @@ const processCompensation = async (data) => {
             date,
             status: 'REJECTED',
             reason: reasonStr,
-            timestamp: new Date().toISOString()
-        };
-        publishToPaymentQueue(rejectEvent);
-        return;
-    }
-
-    if (!logData || !logData.hourlyActivity || onlineHoursList.length === 0) {
-        console.log(`[User: ${userId}] Rapido returned zero hours logged. No payout required.`);
-        const rejectEvent = {
-            userId,
-            email: driverEmail || 'driver@rideshield.com',
-            amount: "0.00",
-            disruptedHours: 0,
-            date,
-            status: 'REJECTED',
-            reason: 'Rejected: Driver was offline / did not log shift activity for the day.',
             timestamp: new Date().toISOString()
         };
         publishToPaymentQueue(rejectEvent);
@@ -848,16 +860,66 @@ app.post('/api/disruptions/confirm-social', async (req, res) => {
         }
         
         // Normalize zone name to match geo_utils output
-        const zoneName = `${city}-${pincode}`;
+        const zoneName = `${city.toLowerCase().trim()}-${pincode.trim()}`;
         const redisKey = `confirmed-social:${date}:${zoneName}`;
         
-        await redisClient.set(redisKey, JSON.stringify({ type, status: 'confirmed' }), { EX: 86400 * 7 }); // keep for 7 days
+        const payload = {
+            type,
+            status: 'confirmed',
+            createdAt: new Date().toISOString()
+        };
+        await redisClient.set(redisKey, JSON.stringify(payload), { EX: 86400 * 7 }); // keep for 7 days
         console.log(`[Override] Zone Manager confirmed social disruption [${type}] for ${zoneName} on ${date}`);
         
         res.status(200).json({
             success: true,
             message: `Social disruption [${type}] confirmed successfully for zone [${zoneName}] on ${date}.`
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get list of all active manual overrides
+app.get('/api/disruptions/overrides', async (req, res) => {
+    try {
+        const keys = await redisClient.keys('confirmed-social:*');
+        const overridesList = [];
+        for (const key of keys) {
+            const parts = key.split(':');
+            const date = parts[1];
+            const zone = parts[2];
+            
+            const valueStr = await redisClient.get(key);
+            if (valueStr) {
+                const data = JSON.parse(valueStr);
+                overridesList.push({
+                    key,
+                    date,
+                    zone,
+                    type: data.type,
+                    status: data.status,
+                    createdAt: data.createdAt || new Date().toISOString()
+                });
+            }
+        }
+        overridesList.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        res.status(200).json({ success: true, overrides: overridesList });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Revoke/Delete a manual zone override
+app.delete('/api/disruptions/overrides', async (req, res) => {
+    try {
+        const { key } = req.body;
+        if (!key) {
+            return res.status(400).json({ error: 'Missing required field: key' });
+        }
+        await redisClient.del(key);
+        console.log(`[Override] Revoked manual override with key [${key}]`);
+        res.status(200).json({ success: true, message: 'Override successfully revoked.' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

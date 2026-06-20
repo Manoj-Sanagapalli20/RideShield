@@ -2,9 +2,67 @@ import React, { useState, useEffect } from 'react';
 import { 
   FiUsers, FiDollarSign, FiPercent, FiShield, FiActivity, 
   FiCheckCircle, FiXCircle, FiAlertTriangle, FiPlusCircle, 
-  FiCalendar, FiMapPin, FiCompass, FiRefreshCw, FiGrid, FiArrowUpRight, FiSearch, FiGlobe
+  FiCalendar, FiMapPin, FiCompass, FiRefreshCw, FiGrid, FiArrowUpRight, FiSearch, FiGlobe,
+  FiCloudRain, FiSun, FiLock, FiAlertOctagon
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'motion/react';
+
+// Custom styling and formatter helpers for overrides log
+const getOverrideBadgeStyle = (type) => {
+  const t = (type || '').toLowerCase().trim();
+  switch (t) {
+    case 'strike':
+    case 'bandh':
+      return {
+        bg: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
+        label: t === 'strike' ? 'Transport Strike' : 'Regional Bandh',
+        icon: FiAlertTriangle
+      };
+    case 'curfew':
+      return {
+        bg: 'bg-red-500/10 border-red-500/20 text-red-400',
+        label: 'Civil Curfew',
+        icon: FiLock
+      };
+    case 'pollution':
+      return {
+        bg: 'bg-purple-500/10 border-purple-500/20 text-purple-400',
+        label: 'Severe Pollution',
+        icon: FiAlertOctagon
+      };
+    case 'rain':
+      return {
+        bg: 'bg-sky-500/10 border-sky-500/20 text-sky-400',
+        label: 'Heavy Monsoon',
+        icon: FiCloudRain
+      };
+    case 'heat':
+      return {
+        bg: 'bg-rose-500/10 border-rose-500/20 text-rose-400',
+        label: 'Extreme Heatwave',
+        icon: FiSun
+      };
+    default:
+      return {
+        bg: 'bg-primary-500/10 border-primary-500/20 text-primary-400',
+        label: t.toUpperCase(),
+        icon: FiShield
+      };
+  }
+};
+
+const formatZoneName = (zoneStr) => {
+  if (!zoneStr) return '';
+  const parts = zoneStr.split('-');
+  if (parts.length < 2) return zoneStr.charAt(0).toUpperCase() + zoneStr.slice(1);
+  const place = parts[0];
+  const pincode = parts[1];
+  const capitalizedPlace = place
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+  return `${capitalizedPlace} (${pincode})`;
+};
 
 // API Configurations
 const PAYMENT_SERVICE_URL = 'http://localhost:5003';
@@ -83,6 +141,7 @@ export default function App() {
   const [payouts, setPayouts] = useState([]);
   const [newsAlerts, setNewsAlerts] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [overrides, setOverrides] = useState([]);
   const [serviceHealth, setServiceHealth] = useState({});
   const [statusFilter, setStatusFilter] = useState('REVIEW');
   const [searchTerm, setSearchTerm] = useState('');
@@ -179,6 +238,19 @@ export default function App() {
     }
   };
 
+  // Fetch active manual overrides list
+  const fetchOverrides = async () => {
+    try {
+      const res = await fetch(`${MAIN_SERVICE_URL}/api/disruptions/overrides`);
+      if (res.ok) {
+        const data = await res.json();
+        setOverrides(data.overrides || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch overrides list:', err);
+    }
+  };
+
   // Check Microservices Health
   const checkHealth = async () => {
     if (!isLocalhost) return; // Skip in production environment
@@ -204,11 +276,13 @@ export default function App() {
   useEffect(() => {
     fetchAnalytics();
     fetchPayouts();
+    fetchOverrides();
     
     // Auto-poll metrics and claims every 10 seconds for real-time updates
     const pollInterval = setInterval(() => {
       fetchAnalytics();
       fetchPayouts();
+      fetchOverrides();
     }, 10000);
 
     if (isLocalhost) {
@@ -228,6 +302,7 @@ export default function App() {
     if (activeTab === 'claims') fetchPayouts();
     if (activeTab === 'news') fetchNewsAlerts();
     if (activeTab === 'drivers') fetchDrivers();
+    if (activeTab === 'overrides') fetchOverrides();
   }, [activeTab, statusFilter, overrideDate]);
 
   // Handle Claims Review (Approve / Reject)
@@ -283,6 +358,7 @@ export default function App() {
         setOverrideCity('');
         setOverridePincode('');
         fetchAnalytics();
+        fetchOverrides();
         if (activeTab === 'news') fetchNewsAlerts();
       } else {
         const errData = await res.json();
@@ -291,6 +367,35 @@ export default function App() {
     } catch (err) {
       console.error(err);
       showToast('Connection error submitting override', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Revoke/Delete a manual zone override
+  const handleRevokeOverride = async (key) => {
+    if (!window.confirm('Are you sure you want to revoke this zone override? Claims for this region will revert to using standard weather/social feeds.')) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${MAIN_SERVICE_URL}/api/disruptions/overrides`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key })
+      });
+
+      if (res.ok) {
+        showToast('Zone override revoked successfully!');
+        fetchOverrides();
+        fetchAnalytics();
+      } else {
+        const errData = await res.json();
+        showToast(errData.error || 'Failed to revoke override', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Connection error revoking override', 'error');
     } finally {
       setLoading(false);
     }
@@ -841,94 +946,188 @@ export default function App() {
           {activeTab === 'overrides' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {/* Form Input Area */}
-              <div className="bg-black border border-white/5 rounded-2xl p-6 lg:col-span-2 shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                  <FiPlusCircle className="size-5 text-primary-400" />
-                  <div>
-                    <h3 className="text-sm font-black text-white">Create Social Disruption Override</h3>
-                    <p className="text-[10px] text-slate-500 font-medium">Bypass automated data checking for specific municipal zones</p>
+              {/* Form Input Area & Active Overrides log */}
+              <div className="space-y-6 lg:col-span-2">
+                <div className="bg-black border border-white/5 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <FiPlusCircle className="size-5 text-primary-400" />
+                    <div>
+                      <h3 className="text-sm font-black text-white">Create Social Disruption Override</h3>
+                      <p className="text-[10px] text-slate-500 font-medium">Bypass automated data checking for specific municipal zones</p>
+                    </div>
                   </div>
+
+                  <form onSubmit={handleOverrideSubmit} className="space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      
+                      {/* Date */}
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">Disruption Date</label>
+                        <div className="relative">
+                          <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
+                          <input
+                            type="date"
+                            value={overrideDate}
+                            onChange={(e) => setOverrideDate(e.target.value)}
+                            className="w-full bg-black/60 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary-500"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Disruption Type */}
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">Override Event Type</label>
+                        <div className="relative">
+                          <FiCompass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
+                          <select
+                            value={overrideType}
+                            onChange={(e) => setOverrideType(e.target.value)}
+                            className="w-full bg-black border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary-500 appearance-none"
+                          >
+                            <option value="strike">🚚 Transport Strike (Hartal)</option>
+                            <option value="curfew">🚨 Civil Curfew / Restrictions</option>
+                            <option value="bandh">⛔ Regional Bandh / Protest</option>
+                            <option value="pollution">🌫️ Severe Air Pollution (AQI &gt; 300)</option>
+                            <option value="rain">🌧️ Heavy Monsoon / Torrential Rain</option>
+                            <option value="heat">🥵 Extreme Heatwave (&gt; 45°C)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* City */}
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">City Name</label>
+                        <div className="relative">
+                          <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
+                          <input
+                            type="text"
+                            placeholder="e.g. Vijayawada"
+                            value={overrideCity}
+                            onChange={(e) => setOverrideCity(e.target.value)}
+                            className="w-full bg-black/60 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary-500 placeholder-slate-650"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Pincode */}
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">Zone Pincode</label>
+                        <div className="relative">
+                          <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
+                          <input
+                            type="text"
+                            placeholder="e.g. 520001"
+                            value={overridePincode}
+                            onChange={(e) => setOverridePincode(e.target.value)}
+                            className="w-full bg-black/60 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary-500 placeholder-slate-650 font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-black font-extrabold text-xs uppercase tracking-wide transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      {loading ? 'Publishing override...' : 'Publish Manual Strike Override'}
+                      <FiArrowUpRight className="size-4 stroke-[2.5]" />
+                    </button>
+                  </form>
                 </div>
 
-                <form onSubmit={handleOverrideSubmit} className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    
-                    {/* Date */}
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">Disruption Date</label>
-                      <div className="relative">
-                        <FiCalendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
-                        <input
-                          type="date"
-                          value={overrideDate}
-                          onChange={(e) => setOverrideDate(e.target.value)}
-                          className="w-full bg-black/60 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary-500"
-                          required
-                        />
+                {/* Overrides Log Card */}
+                <div className="bg-black border border-white/5 rounded-2xl p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <FiActivity className="size-5 text-primary-400" />
+                      <div>
+                        <h3 className="text-sm font-black text-white">Active Zone Overrides Log</h3>
+                        <p className="text-[10px] text-slate-500 font-medium">Review manual overrides currently registered in Redis cache</p>
                       </div>
                     </div>
-
-                    {/* Disruption Type */}
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">Override Event Type</label>
-                      <div className="relative">
-                        <FiCompass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
-                        <select
-                          value={overrideType}
-                          onChange={(e) => setOverrideType(e.target.value)}
-                          className="w-full bg-black border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary-500 appearance-none"
-                        >
-                          <option value="strike">🚚 Transport Strike (Hartal)</option>
-                          <option value="curfew">🚨 Civil Curfew / Restrictions</option>
-                          <option value="bandh">⛔ Regional Bandh / Protest</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* City */}
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">City Name</label>
-                      <div className="relative">
-                        <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
-                        <input
-                          type="text"
-                          placeholder="e.g. Vijayawada"
-                          value={overrideCity}
-                          onChange={(e) => setOverrideCity(e.target.value)}
-                          className="w-full bg-black/60 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary-500 placeholder-slate-650"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Pincode */}
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block mb-2">Zone Pincode</label>
-                      <div className="relative">
-                        <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
-                        <input
-                          type="text"
-                          placeholder="e.g. 520001"
-                          value={overridePincode}
-                          onChange={(e) => setOverridePincode(e.target.value)}
-                          className="w-full bg-black/60 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-primary-500 placeholder-slate-650 font-mono"
-                          required
-                        />
-                      </div>
-                    </div>
-
+                    <span className="text-[10px] px-2.5 py-0.5 border border-white/10 rounded-full font-mono text-slate-400 bg-white/[0.02] font-semibold">
+                      {overrides.length} Overrides
+                    </span>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-black font-extrabold text-xs uppercase tracking-wide transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    {loading ? 'Publishing override...' : 'Publish Manual Strike Override'}
-                    <FiArrowUpRight className="size-4 stroke-[2.5]" />
-                  </button>
-                </form>
+                  {overrides.length === 0 ? (
+                    <div className="py-10 text-center border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+                      <FiCompass className="size-8 text-slate-600 mx-auto mb-2.5" />
+                      <p className="text-xs font-bold text-slate-500">No manual overrides active in the system</p>
+                      <p className="text-[10px] text-slate-600 mt-1">Use the form above to declare a local social or weather disruption</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                      <AnimatePresence initial={false}>
+                        {overrides.map((ovr) => {
+                          const dateObj = new Date(ovr.createdAt);
+                          const formattedTime = dateObj.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                          const formattedDate = dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+                          
+                          const badgeStyle = getOverrideBadgeStyle(ovr.type);
+                          const OvrIcon = badgeStyle.icon;
+                          
+                          return (
+                            <motion.div 
+                              key={ovr.key}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, x: -30 }}
+                              transition={{ duration: 0.2 }}
+                              className="flex flex-col md:flex-row md:items-center justify-between p-3.5 bg-white/[0.01] border border-white/5 rounded-xl hover:border-white/10 transition-all hover:bg-white/[0.02] group"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`${badgeStyle.bg} p-2 rounded-xl shrink-0 border`}>
+                                  <OvrIcon size={16} />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-bold text-white">{formatZoneName(ovr.zone)}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 border rounded font-mono font-extrabold uppercase tracking-wider ${badgeStyle.bg}`}>
+                                      {badgeStyle.label}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 mt-1 font-medium leading-none">
+                                    Disruption Date: <span className="font-semibold text-white">{ovr.date}</span>
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="mt-3 md:mt-0 flex items-center justify-between md:justify-end gap-4 border-t border-white/5 pt-2.5 md:pt-0 md:border-0 font-medium">
+                                <div className="text-left md:text-right">
+                                  <p className="text-[9px] text-slate-500 font-bold uppercase leading-none">Created</p>
+                                  <p className="text-[10px] text-slate-400 font-mono mt-1 leading-none">
+                                    {formattedDate}, {formattedTime}
+                                  </p>
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase">
+                                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    Active
+                                  </div>
+                                  
+                                  <button
+                                    onClick={() => handleRevokeOverride(ovr.key)}
+                                    className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded transition-all"
+                                    title="Revoke Override"
+                                  >
+                                    <FiXCircle size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Sidebar Description / Notes */}

@@ -108,6 +108,36 @@ const isRealDisruption = (reason: string) => {
     return false;
 };
 
+const formatRejectionReason = (reason: string) => {
+    if (!reason) return { mainReason: "", details: [] };
+    let clean = reason.startsWith("Rejected: ") ? reason.substring(10) : reason;
+    
+    let mainReason = clean;
+    let details: string[] = [];
+    
+    const rejectionsIndex = clean.indexOf("Rejections: ");
+    if (rejectionsIndex !== -1) {
+        mainReason = clean.substring(0, rejectionsIndex).trim();
+        if (mainReason.endsWith('.')) {
+            mainReason = mainReason.slice(0, -1);
+        }
+        const detailsStr = clean.substring(rejectionsIndex + 12).trim();
+        details = detailsStr.split(',').map(s => s.trim()).filter(Boolean);
+    } else {
+        const shiftIndex = clean.indexOf("(Shift: ");
+        if (shiftIndex !== -1) {
+            mainReason = clean.substring(0, shiftIndex).trim();
+            if (mainReason.endsWith('.')) {
+                mainReason = mainReason.slice(0, -1);
+            }
+            const shiftStr = clean.substring(shiftIndex).trim();
+            details = [shiftStr];
+        }
+    }
+    return { mainReason, details };
+};
+
+
 export default function DashboardPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
@@ -650,6 +680,24 @@ export default function DashboardPage() {
                                             Payout Triggered: +₹{activePayout.amount.toFixed(2)} dispatched!
                                         </div>
                                     </div>
+                                ) : activePayout.status === 'REVIEW' ? (
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-baseline">
+                                            <h2 className="text-2xl font-bold text-white tracking-tight">
+                                                Verification Pending
+                                            </h2>
+                                            <span className="text-xs font-semibold text-amber-400 animate-pulse">
+                                                Awaiting Review
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-amber-500 rounded-full w-[50%] animate-pulse" />
+                                        </div>
+                                        <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-medium flex items-center gap-2">
+                                            <FiAlertTriangle className="size-3.5 shrink-0" />
+                                            Awaiting review by the Zone Manager. Disruption detected, but ML Risk Engine requires manual validation.
+                                        </div>
+                                    </div>
                                 ) : (() => {
                                     const isFraud = activePayout.reason.toLowerCase().includes("fraud") || activePayout.reason.toLowerCase().includes("anomaly");
                                     return (
@@ -675,12 +723,33 @@ export default function DashboardPage() {
                                                     <FiCheckCircle className="size-3.5 shrink-0" />
                                                     Parametric Monitoring Active. Safe Hours.
                                                 </div>
-                                            ) : (
-                                                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-medium flex items-center gap-2">
-                                                    <FiAlertTriangle className="size-3.5 shrink-0" />
-                                                    Unpaid: {activePayout.reason.replace("Rejected: ", "")}
-                                                </div>
-                                            )}
+                                            ) : (() => {
+                                                const { mainReason, details } = formatRejectionReason(activePayout.reason);
+                                                return (
+                                                    <div className="w-full p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-400 font-medium flex flex-col gap-2.5">
+                                                        <div className="flex items-start gap-2.5">
+                                                            <FiAlertTriangle className="size-4 shrink-0 text-amber-400 mt-0.5" />
+                                                            <div>
+                                                                <span className="font-bold text-amber-300 block mb-0.5">Unpaid Disruption</span>
+                                                                <span className="text-amber-400/90 leading-relaxed">{mainReason}</span>
+                                                            </div>
+                                                        </div>
+                                                        {details.length > 0 && (
+                                                            <div className="pt-2.5 border-t border-amber-500/10">
+                                                                <span className="text-[10px] text-amber-500/50 uppercase tracking-wider font-bold block mb-2">Hourly Details</span>
+                                                                <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-white/10">
+                                                                    {details.map((d, idx) => (
+                                                                        <div key={idx} className="flex items-start gap-2 text-[11px] text-amber-500/80 bg-amber-500/5 p-2 rounded border border-amber-500/10 leading-normal">
+                                                                            <span className="inline-block size-1 rounded-full bg-amber-500/50 mt-1.5 shrink-0" />
+                                                                            <span>{d}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     );
                                 })()
@@ -776,9 +845,11 @@ export default function DashboardPage() {
                                 <span className={`text-[9px] px-2 py-0.5 border rounded font-semibold uppercase tracking-wider ${
                                     latestPayout.status === 'REJECTED'
                                         ? 'text-red-400 bg-red-500/10 border-red-500/25'
-                                        : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25'
+                                        : latestPayout.status === 'REVIEW'
+                                            ? 'text-amber-400 bg-amber-500/10 border-amber-500/25'
+                                            : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25'
                                 }`}>
-                                    {latestPayout.status === 'REJECTED' ? 'Rejected' : 'Approved'}
+                                    {latestPayout.status === 'REJECTED' ? 'Rejected' : latestPayout.status === 'REVIEW' ? 'Reviewing' : 'Approved'}
                                 </span>
                             )}
                         </div>
@@ -788,9 +859,13 @@ export default function DashboardPage() {
                             <div className="space-y-3">
                                 <div className="flex items-start gap-3">
                                     <div className={`size-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                        latestPayout.status === 'REJECTED' ? 'text-red-400 bg-red-500/10 border border-red-500/20' : 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                                        latestPayout.status === 'REJECTED'
+                                            ? 'text-red-400 bg-red-500/10 border border-red-500/20'
+                                            : latestPayout.status === 'REVIEW'
+                                                ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+                                                : 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
                                     }`}>
-                                        {latestPayout.status === 'REJECTED' ? <FiX className="size-4" /> : <FiCloudRain className="size-4" />}
+                                        {latestPayout.status === 'REJECTED' ? <FiX className="size-4" /> : latestPayout.status === 'REVIEW' ? <FiAlertTriangle className="size-4" /> : <FiCloudRain className="size-4" />}
                                     </div>
                                     <div>
                                         <p className="text-xs font-bold text-white line-clamp-2">{getApprovedReasonOnly(latestPayout.reason)}</p>
@@ -800,7 +875,7 @@ export default function DashboardPage() {
                                 <div className="bg-white/5 border border-white/5 rounded-xl px-4 py-2.5 flex items-center justify-between">
                                     <div>
                                         <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Credit amount</span>
-                                        <span className={`text-base font-bold ${latestPayout.status === 'REJECTED' ? 'text-slate-500' : 'text-emerald-400'}`}>
+                                        <span className={`text-base font-bold ${latestPayout.status === 'REJECTED' ? 'text-slate-500' : latestPayout.status === 'REVIEW' ? 'text-amber-400' : 'text-emerald-400'}`}>
                                             {latestPayout.status === 'REJECTED' ? '₹0.00' : `+₹${latestPayout.amount.toFixed(2)}`}
                                         </span>
                                     </div>
@@ -1017,15 +1092,17 @@ export default function DashboardPage() {
                                 <h3 className="text-base font-bold text-white mb-3">{selectedPayout.date}</h3>
                                 
                                 <div className="inline-flex flex-col items-center">
-                                    <span className={`text-3xl font-extrabold tracking-tight ${selectedPayout.status === 'REJECTED' ? 'text-slate-500' : 'text-emerald-400'}`}>
+                                    <span className={`text-3xl font-extrabold tracking-tight ${selectedPayout.status === 'REJECTED' ? 'text-slate-500' : selectedPayout.status === 'REVIEW' ? 'text-amber-400' : 'text-emerald-400'}`}>
                                         {selectedPayout.status === 'REJECTED' ? '₹0.00' : `+₹${selectedPayout.amount}`}
                                     </span>
                                     <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider mt-2 border ${
                                         selectedPayout.status === 'REJECTED' 
                                             ? 'text-red-400 bg-red-500/10 border-red-500/20' 
-                                            : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                            : selectedPayout.status === 'REVIEW'
+                                                ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                                                : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                                     }`}>
-                                        {selectedPayout.status === 'REJECTED' ? 'Rejected' : 'Approved'}
+                                        {selectedPayout.status === 'REJECTED' ? 'Rejected' : selectedPayout.status === 'REVIEW' ? 'Reviewing' : 'Approved'}
                                     </span>
                                 </div>
                             </div>
