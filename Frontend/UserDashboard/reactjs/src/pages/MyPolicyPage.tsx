@@ -59,11 +59,20 @@ export default function MyPolicyPage() {
                                 {isLoading ? "Loading..." : policy?.planName || "GigShield Pro"}
                             </h2>
                             {user?.name && <p className="text-slate-400 text-sm mt-1">Holder: {user.name}</p>}
+                            {policy?.explanation && (
+                                <p className="text-slate-400 text-xs mt-2.5 bg-white/5 border border-white/5 p-2.5 rounded-xl max-w-md font-medium leading-relaxed">
+                                    ℹ️ {policy.explanation}
+                                </p>
+                            )}
                         </div>
                         <div className="flex flex-col gap-4 text-right">
                             <div>
                                 <p className="text-xs text-slate-500 uppercase tracking-widest font-medium mb-1">Daily Wage Protected</p>
                                 <p className="text-3xl font-bold text-white">₹{policy?.dailyWage || 600}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500 uppercase tracking-widest font-medium mb-1">Weekly Premium Paid</p>
+                                <p className="text-2xl font-bold text-white">₹{policy?.premiumAmount || 35}</p>
                             </div>
                             <div className="flex gap-2 justify-end">
                                 <button className="text-[11px] font-medium text-slate-400 hover:text-white bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all hover:bg-white/8">

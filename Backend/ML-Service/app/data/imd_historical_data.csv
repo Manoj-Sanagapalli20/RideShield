@@ -1,0 +1,316 @@
+district,state,avg_rain_days_per_month,flood_zone_classification,avg_aqi_score_last_year,strike_events_last_2_years,zone_type,monsoon_season_flag,risk_label
+vijayawada,andhra pradesh,13,2,110,4,2,1,1
+guntur,andhra pradesh,10,0,95,2,1,1,0
+bhattiprolu,andhra pradesh,14,2,65,0,0,1,1
+visakhapatnam,andhra pradesh,15,2,85,3,2,1,1
+nellore,andhra pradesh,12,1,75,1,1,1,0
+tirupati,andhra pradesh,11,0,90,2,2,1,0
+kurnool,andhra pradesh,9,0,95,1,1,1,0
+kadapa,andhra pradesh,8,0,100,1,1,1,0
+anantapur,andhra pradesh,6,0,105,1,1,1,0
+eluru,andhra pradesh,13,1,80,2,1,1,0
+kakinada,andhra pradesh,15,2,85,2,1,1,1
+vizianagaram,andhra pradesh,14,1,90,1,1,1,0
+srikakulam,andhra pradesh,16,2,80,1,0,1,1
+ongole,andhra pradesh,10,1,90,2,1,1,0
+machilipatnam,andhra pradesh,14,2,75,1,0,1,1
+tenali,andhra pradesh,12,1,95,2,1,1,0
+rajamahendravaram,andhra pradesh,14,1,85,2,2,1,1
+bhimavaram,andhra pradesh,15,2,70,0,0,1,1
+tadepalligudem,andhra pradesh,13,1,75,0,0,1,0
+madanapalle,andhra pradesh,10,0,85,1,1,1,0
+proddatur,andhra pradesh,8,0,95,1,1,1,0
+adoni,andhra pradesh,9,0,100,1,1,1,0
+hindupur,andhra pradesh,7,0,90,1,1,1,0
+dharmavaram,andhra pradesh,7,0,95,1,1,1,0
+vizag,andhra pradesh,15,2,85,3,2,1,1
+hyderabad,telangana,8,0,145,5,2,1,0
+secunderabad,telangana,8,0,140,4,2,1,0
+warangal,telangana,11,1,110,3,2,1,0
+hanamkonda,telangana,11,1,105,2,2,1,0
+karimnagar,telangana,10,0,115,2,1,1,0
+nizamabad,telangana,11,0,100,1,1,1,0
+khammam,telangana,12,1,95,2,1,1,0
+ramagundam,telangana,10,0,130,1,1,1,0
+mahbubnagar,telangana,9,0,105,1,1,1,0
+nalgonda,telangana,9,0,110,2,1,1,0
+adilabad,telangana,12,1,90,1,0,1,0
+mancherial,telangana,11,0,115,1,1,1,0
+sangareddy,telangana,9,0,125,2,1,1,0
+siddipet,telangana,10,0,105,1,1,1,0
+miryalaguda,telangana,9,0,95,1,1,1,0
+kamareddy,telangana,11,0,100,1,1,1,0
+kothagudem,telangana,12,1,120,1,0,1,0
+suryapet,telangana,10,0,105,1,1,1,0
+jagtial,telangana,11,0,100,1,1,1,0
+bhongir,telangana,9,0,115,1,1,1,0
+bangalore,karnataka,11,0,85,3,2,1,0
+mysore,karnataka,10,0,75,1,1,1,0
+hubli,karnataka,11,0,90,2,2,1,0
+belgaum,karnataka,14,1,80,1,1,1,0
+mangalore,karnataka,24,2,60,1,0,1,1
+gulbarga,karnataka,9,0,105,1,1,1,0
+davanagere,karnataka,9,0,95,1,1,1,0
+bellary,karnataka,7,0,115,2,1,1,0
+shimoga,karnataka,18,1,70,1,1,1,1
+tumkur,karnataka,9,0,90,1,1,1,0
+chennai,tamil nadu,16,2,120,6,2,1,1
+coimbatore,tamil nadu,9,0,80,2,2,1,0
+madurai,tamil nadu,9,1,95,3,2,1,0
+tiruchirappalli,tamil nadu,8,0,90,2,1,1,0
+salem,tamil nadu,10,0,100,2,1,1,0
+tirunelveli,tamil nadu,8,1,85,1,1,1,0
+vellore,tamil nadu,10,0,110,2,1,1,0
+thoothukudi,tamil nadu,6,2,90,1,0,1,1
+erode,tamil nadu,8,0,95,1,1,1,0
+thanjavur,tamil nadu,11,1,80,1,1,1,0
+trivandrum,kerala,18,1,65,2,2,1,1
+kochi,kerala,25,2,60,3,2,1,1
+kozhikode,kerala,26,2,55,2,2,1,1
+thrissur,kerala,23,2,60,1,1,1,1
+kollam,kerala,20,1,65,1,1,1,1
+alappuzha,kerala,26,2,50,1,0,1,1
+palakkad,kerala,18,1,70,1,1,1,1
+kannur,kerala,26,2,55,2,1,1,1
+kottayam,kerala,22,2,60,1,1,1,1
+kasaragod,kerala,28,2,50,1,0,1,1
+mumbai,maharashtra,22,2,135,7,2,1,1
+pune,maharashtra,12,0,95,3,2,1,0
+nagpur,maharashtra,13,1,100,2,2,1,0
+thane,maharashtra,22,2,125,4,2,1,1
+nashik,maharashtra,11,0,90,2,1,1,0
+aurangabad,maharashtra,9,0,105,2,1,1,0
+solapur,maharashtra,8,0,110,1,1,1,0
+kolhapur,maharashtra,16,1,75,1,1,1,1
+amravati,maharashtra,12,0,95,1,1,1,0
+navi mumbai,maharashtra,21,1,120,3,2,1,1
+ahmedabad,gujarat,7,0,150,4,2,1,0
+surat,gujarat,12,1,130,3,2,1,0
+vadodara,gujarat,9,0,110,2,2,1,0
+rajkot,gujarat,7,0,120,2,1,1,0
+bhavnagar,gujarat,7,1,105,1,1,1,0
+jamnagar,gujarat,7,1,115,1,1,1,0
+gandhinagar,gujarat,7,0,140,2,2,1,0
+junagadh,gujarat,13,2,80,1,0,1,1
+nadiad,gujarat,8,0,105,1,1,1,0
+morbi,gujarat,6,1,125,1,1,1,0
+jaipur,rajasthan,7,0,160,5,2,1,0
+jodhpur,rajasthan,4,0,120,2,2,1,0
+kota,rajasthan,9,0,130,2,1,1,0
+bikaner,rajasthan,3,0,140,1,1,1,0
+ajmer,rajasthan,6,0,115,1,1,1,0
+udaipur,rajasthan,10,1,95,2,1,1,0
+bhilwara,rajasthan,8,0,110,1,1,1,0
+alwar,rajasthan,8,0,145,2,1,1,0
+bharatpur,rajasthan,8,0,150,2,1,1,0
+sikar,rajasthan,5,0,135,1,1,1,0
+indore,madhya pradesh,11,0,110,3,2,1,0
+bhopal,madhya pradesh,12,0,115,3,2,1,0
+jabalpur,madhya pradesh,15,1,100,2,1,1,0
+gwalior,madhya pradesh,9,0,145,2,2,1,0
+ujjain,madhya pradesh,10,0,105,2,1,1,0
+sagar,madhya pradesh,12,0,95,1,1,1,0
+dewas,madhya pradesh,11,0,100,1,1,1,0
+satna,madhya pradesh,13,0,120,1,1,1,0
+ratlam,madhya pradesh,10,0,105,1,1,1,0
+rewa,madhya pradesh,13,0,115,1,1,1,0
+lucknow,uttar pradesh,11,0,180,5,2,1,0
+kanpur,uttar pradesh,10,0,195,4,2,1,0
+ghaziabad,uttar pradesh,9,0,240,4,2,1,0
+agra,uttar pradesh,8,0,190,3,2,1,0
+meerut,uttar pradesh,9,0,175,3,1,1,0
+varanasi,uttar pradesh,12,1,170,4,2,1,0
+allahabad,uttar pradesh,11,1,160,3,2,1,0
+bareilly,uttar pradesh,11,0,150,2,1,1,0
+aligarh,uttar pradesh,9,0,185,2,1,1,0
+gorakhpur,uttar pradesh,15,2,130,2,1,1,1
+patna,bihar,14,2,180,5,2,1,1
+gaya,bihar,13,0,160,2,1,1,0
+bhagalpur,bihar,15,2,140,2,1,1,1
+muzaffarpur,bihar,15,2,150,3,1,1,1
+purnia,bihar,18,2,110,1,0,1,1
+darbhanga,bihar,16,2,135,2,1,1,1
+bihar sharif,bihar,13,1,155,1,1,1,0
+arrah,bihar,12,1,160,2,1,1,0
+begusarai,bihar,14,2,145,1,1,1,1
+katihar,bihar,17,2,115,1,0,1,1
+kolkata,west bengal,18,2,125,6,2,1,1
+howrah,west bengal,18,2,130,4,2,1,1
+darjeeling,west bengal,28,2,45,1,0,1,1
+asansol,west bengal,14,1,140,3,2,1,0
+siliguri,west bengal,24,2,75,2,1,1,1
+durgapur,west bengal,14,1,135,2,2,1,0
+bardhaman,west bengal,15,1,100,1,1,1,0
+malda,west bengal,16,2,110,1,1,1,1
+kharagpur,west bengal,16,1,95,1,1,1,0
+haldia,west bengal,18,2,105,1,2,1,1
+bhubaneswar,odisha,17,1,90,3,2,1,0
+cuttack,odisha,17,2,95,2,2,1,1
+rourkela,odisha,16,0,120,2,1,1,0
+brahmapur,odisha,15,1,85,1,1,1,0
+sambalpur,odisha,18,1,105,1,1,1,1
+puri,odisha,16,2,70,1,0,1,1
+balasore,odisha,19,2,90,1,0,1,1
+bhadrak,odisha,18,2,85,1,0,1,1
+baripada,odisha,17,1,80,1,0,1,0
+jharsuguda,odisha,15,0,135,1,1,1,0
+ludhiana,punjab,8,0,175,4,2,1,0
+amritsar,punjab,9,0,145,3,2,1,0
+jalandhar,punjab,8,0,150,2,2,1,0
+patiala,punjab,8,0,155,2,1,1,0
+bathinda,punjab,5,0,140,2,1,1,0
+mohali,punjab,9,0,130,2,2,1,0
+pathankot,punjab,12,1,95,1,1,1,0
+hoshiarpur,punjab,10,0,110,1,1,1,0
+batala,punjab,8,0,120,1,1,1,0
+moga,punjab,7,0,135,1,1,1,0
+faridabad,haryana,8,0,230,4,2,1,0
+gurugram,haryana,8,0,220,4,2,1,0
+panipat,haryana,7,0,185,2,1,1,0
+ambala,haryana,9,0,130,2,1,1,0
+yamunanagar,haryana,10,1,140,1,1,1,0
+rohtak,haryana,7,0,170,2,1,1,0
+hisar,haryana,5,0,150,2,1,1,0
+karnal,haryana,8,0,160,1,1,1,0
+sonipat,haryana,7,0,195,2,1,1,0
+panchkula,haryana,9,0,115,1,1,1,0
+shimla,himachal pradesh,16,1,65,1,1,1,0
+dharamshala,himachal pradesh,24,2,55,1,1,1,1
+solan,himachal pradesh,15,0,80,1,1,1,0
+mandi,himachal pradesh,17,1,75,1,1,1,0
+bilaspur,himachal pradesh,13,1,90,0,0,1,0
+chamba,himachal pradesh,16,2,60,0,0,1,1
+hamirpur,himachal pradesh,14,0,85,0,1,1,0
+una,himachal pradesh,12,1,100,1,1,1,0
+kullu,himachal pradesh,17,2,65,1,0,1,1
+nahan,himachal pradesh,15,1,80,0,1,1,0
+dehradun,uttarakhand,18,2,95,2,2,1,1
+haridwar,uttarakhand,14,2,140,2,1,1,1
+haldwani,uttarakhand,16,1,110,1,1,1,0
+roorkee,uttarakhand,12,1,135,1,1,1,0
+rudrapur,uttarakhand,15,1,130,1,1,1,0
+kashipur,uttarakhand,14,1,125,1,1,1,0
+rishikesh,uttarakhand,16,2,90,1,1,1,1
+nainital,uttarakhand,20,2,65,1,0,1,1
+pithoragarh,uttarakhand,16,2,60,0,0,1,1
+almora,uttarakhand,15,1,70,0,1,1,0
+srinagar,jammu & kashmir,14,1,85,3,2,1,0
+jammu,jammu & kashmir,12,1,115,2,2,1,0
+anantnag,jammu & kashmir,13,1,75,2,1,1,0
+baramulla,jammu & kashmir,14,1,70,1,1,1,0
+kathua,jammu & kashmir,12,1,105,1,1,1,0
+sopore,jammu & kashmir,13,1,75,1,1,1,0
+poonch,jammu & kashmir,15,2,65,1,0,1,1
+udhampur,jammu & kashmir,13,1,90,1,1,1,0
+kupwara,jammu & kashmir,14,2,60,0,0,1,1
+reasi,jammu & kashmir,13,1,85,1,1,1,0
+panaji,goa,25,2,45,1,2,1,1
+margao,goa,25,2,45,1,2,1,1
+vasco da gama,goa,24,2,50,1,2,1,1
+mapusa,goa,25,2,45,0,1,1,1
+ponda,goa,26,2,45,0,1,1,1
+bicholim,goa,26,2,40,0,0,1,1
+valpoi,goa,27,2,40,0,0,1,1
+pernem,goa,25,2,45,0,0,1,1
+quepem,goa,26,2,40,0,0,1,1
+chauri,goa,26,2,40,0,0,1,1
+raipur,chhattisgarh,14,1,130,3,2,1,0
+bhilai,chhattisgarh,13,0,120,2,2,1,0
+bilaspur,chhattisgarh,14,1,115,2,1,1,0
+korba,chhattisgarh,15,1,140,1,1,1,0
+rajnandgaon,chhattisgarh,13,0,105,1,1,1,0
+jagdalpur,chhattisgarh,18,1,85,1,0,1,1
+ambikapur,chhattisgarh,16,0,95,1,1,1,0
+dhamtari,chhattisgarh,14,1,100,1,1,1,0
+raigarh,chhattisgarh,14,0,130,1,1,1,0
+mahasamund,chhattisgarh,13,1,105,1,1,1,0
+ranchi,jharkhand,15,1,110,3,2,1,0
+jamshedpur,jharkhand,15,1,145,3,2,1,0
+dhanbad,jharkhand,14,1,160,2,2,1,0
+bokaro,jharkhand,14,1,130,1,1,1,0
+deoghar,jharkhand,13,0,115,2,1,1,0
+hazaribagh,jharkhand,14,0,105,1,1,1,0
+giridih,jharkhand,13,0,120,1,1,1,0
+ramgarh,jharkhand,14,0,125,1,1,1,0
+medininagar,jharkhand,12,0,130,1,1,1,0
+chaibasa,jharkhand,15,1,95,1,1,1,0
+guwahati,assam,20,2,95,4,2,1,1
+silchar,assam,24,2,75,2,1,1,1
+dibrugarh,assam,25,2,70,1,1,1,1
+jorhat,assam,22,1,80,2,1,1,1
+nagaon,assam,18,1,90,1,1,1,1
+tinsukia,assam,24,2,85,1,1,1,1
+tezpur,assam,20,1,80,1,1,1,1
+bongaigaon,assam,21,2,85,1,1,1,1
+dhubri,assam,23,2,80,1,0,1,1
+karimganj,assam,25,2,70,1,0,1,1
+shillong,meghalaya,26,2,50,2,2,1,1
+tura,meghalaya,24,2,60,1,1,1,1
+jowai,meghalaya,27,2,45,1,1,1,1
+nongpoh,meghalaya,23,2,65,1,1,1,1
+williamnagar,meghalaya,24,2,55,0,0,1,1
+baghmara,meghalaya,25,2,50,0,0,1,1
+nongstoin,meghalaya,26,2,45,0,0,1,1
+resubelpara,meghalaya,23,2,60,0,0,1,1
+khliehriat,meghalaya,28,2,45,0,0,1,1
+mairang,meghalaya,26,2,45,0,0,1,1
+agartala,tripura,22,2,85,3,2,1,1
+dharmanagar,tripura,23,2,75,1,1,1,1
+kailasahar,tripura,24,2,70,1,1,1,1
+udaipur,tripura,22,1,80,1,1,1,1
+belonia,tripura,23,1,75,1,1,1,1
+khowai,tripura,22,2,80,0,0,1,1
+ambassa,tripura,24,2,70,0,0,1,1
+sabroom,tripura,25,2,65,0,0,1,1
+melaghar,tripura,22,1,80,0,0,1,1
+dhalai,tripura,24,2,70,0,0,1,1
+imphal,manipur,18,1,75,3,2,1,0
+thoubal,manipur,17,1,70,1,1,1,0
+kakching,manipur,17,1,65,1,1,1,0
+ukhrul,manipur,22,2,50,1,0,1,1
+churachandpur,manipur,20,2,60,1,1,1,1
+senapati,manipur,21,2,55,1,0,1,1
+tamenglong,manipur,25,2,45,0,0,1,1
+chandel,manipur,19,1,65,0,0,1,0
+jiribam,manipur,24,2,60,0,0,1,1
+kangpokpi,manipur,20,1,65,1,1,1,0
+kohima,nagaland,20,2,60,2,2,1,1
+dimapur,nagaland,17,1,95,2,2,1,0
+mokokchung,nagaland,21,2,55,1,1,1,1
+tuensang,nagaland,22,2,50,0,0,1,1
+wokha,nagaland,20,1,65,1,1,1,0
+zunheboto,nagaland,21,2,55,0,0,1,1
+phek,nagaland,20,1,60,0,0,1,0
+mon,nagaland,22,2,65,0,0,1,1
+peren,nagaland,21,2,55,0,0,1,1
+kiphire,nagaland,22,2,50,0,0,1,1
+aizawl,mizoram,24,2,50,2,2,1,1
+lunglei,mizoram,25,2,45,1,1,1,1
+saiha,mizoram,26,2,40,0,0,1,1
+champhai,mizoram,22,2,45,0,0,1,1
+kolasib,mizoram,23,2,55,0,1,1,1
+serchhip,mizoram,23,2,45,0,0,1,1
+lawngtlai,mizoram,25,2,45,0,0,1,1
+mamit,mizoram,24,2,50,0,0,1,1
+khawzawl,mizoram,23,2,45,0,0,1,1
+hnahthial,mizoram,24,2,45,0,0,1,1
+itanagar,arunachal pradesh,22,2,55,2,2,1,1
+naharlagun,arunachal pradesh,22,2,60,1,2,1,1
+pasighat,arunachal pradesh,28,2,45,1,0,1,1
+namsai,arunachal pradesh,24,2,65,0,0,1,1
+ziro,arunachal pradesh,21,1,50,0,0,1,0
+bomdila,arunachal pradesh,20,1,55,0,0,1,0
+tezu,arunachal pradesh,24,2,60,0,0,1,1
+aalo,arunachal pradesh,22,2,55,0,0,1,1
+tawang,arunachal pradesh,20,2,45,1,0,1,1
+roing,arunachal pradesh,25,2,50,0,0,1,1
+gangtok,sikkim,26,2,45,1,2,1,1
+namchi,sikkim,22,2,50,0,1,1,1
+geyzing,sikkim,23,2,45,0,0,1,1
+mangan,sikkim,27,2,40,0,0,1,1
+singtam,sikkim,24,1,55,0,1,1,0
+rangpo,sikkim,23,1,60,0,1,1,0
+nayabazar,sikkim,22,1,55,0,0,1,0
+ravangla,sikkim,24,2,45,0,0,1,1
+soreng,sikkim,23,2,45,0,0,1,1
+pakyong,sikkim,25,2,45,0,0,1,1

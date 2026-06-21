@@ -30,6 +30,10 @@ const paymentSchema = new mongoose.Schema({
     type: String,
     enum: ['PENDING', 'SUCCESS', 'FAILED', 'PAUSED'],
     default: 'PENDING'
+  },
+  explanation: {
+    type: String,
+    required: false
   }
 }, { timestamps: true });
 

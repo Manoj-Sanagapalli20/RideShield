@@ -111,7 +111,7 @@ app.get('/api/policy/user/:userId', async (req, res) => {
       `${paymentServiceUrl}/api/payments/status/${userId}`
     );
 
-    const { hasPlan, plan, status, amount } = paymentRes.data;
+    const { hasPlan, plan, status, amount, explanation } = paymentRes.data;
 
     if (!hasPlan) {
       return res.status(404).json({ message: 'No active policy found' });
@@ -140,7 +140,8 @@ app.get('/api/policy/user/:userId', async (req, res) => {
       planName: plan,
       dailyWage,
       status: status === 'PAUSED' ? 'Paused' : 'Active',
-      premiumAmount
+      premiumAmount,
+      explanation: explanation || ''
     });
 
   } catch (error) {
@@ -160,6 +161,7 @@ app.post('/api/policy/select-plan', async (req, res) => {
     // --- Dynamic Risk Scoring Premium Adjustment ---
     let finalAmount = parseFloat(amount);
     let riskAdjustment = 0;
+    let explanation = "";
     try {
       const dummyRapidoUrl = process.env.DUMMYRAPIDO_URL || 'http://localhost:5000';
       const mlServiceUrl = process.env.ML_SERVICE_URL || 'http://localhost:8000';
@@ -183,17 +185,24 @@ app.post('/api/policy/select-plan', async (req, res) => {
         const riskRes = await axios.post(`${mlServiceUrl}/api/ml/risk-score`, {
           pincode: pincode,
           season: 'monsoon',
-          zoneType: 'urban'
+          zoneType: 'urban',
+          city: city
         });
         
         if (riskRes.data && riskRes.data.premiumAdjustment !== undefined) {
           riskAdjustment = riskRes.data.premiumAdjustment;
           finalAmount += riskAdjustment;
+          if (riskAdjustment > 0) {
+            explanation = `₹${riskAdjustment} zone surcharge applied because your registered city (${city}) has a historical average of ${riskRes.data.avg_rain_days_per_month} rain days/month in monsoon and is classified as a ${riskRes.data.riskLevel}-risk zone by our Random Forest model.`;
+          } else {
+            explanation = `Standard base rate active. Your registered city (${city}) is classified as a low-risk zone for flood and strike disruptions.`;
+          }
           console.log(`[PolicyService] Signup Risk Adjustment for ${partnerId} in ${city}: +₹${riskAdjustment}. Final premium: ₹${finalAmount}`);
         }
       }
     } catch (riskErr) {
       console.warn(`[PolicyService] Dynamic risk pricing failed, falling back to base premium:`, riskErr.message);
+      explanation = "Standard weekly rate active.";
     }
 
     const event = {
@@ -201,7 +210,8 @@ app.post('/api/policy/select-plan', async (req, res) => {
       userId: partnerId,
       email: email || 'driver@rideshield.com',
       plan: planName,
-      amount: finalAmount
+      amount: finalAmount,
+      explanation: explanation
     };
 
     if (channel) {
@@ -233,6 +243,84 @@ app.post('/api/policy/select-plan', async (req, res) => {
     res.status(500).json({ message: "Failed to process plan selection" });
   }
 });
+
+// ✅ Pre-calculate/simulate premium adjustment before purchasing (Random Forest)
+app.post('/api/policy/preview-premium', async (req, res) => {
+  try {
+    const { partnerId, planName, amount } = req.body;
+    if (!partnerId || !planName || amount === undefined) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    let finalAmount = parseFloat(amount);
+    let riskAdjustment = 0;
+    let city = "";
+    let pincode = "";
+    let riskScore = 0;
+    let riskLevel = "low";
+    let explanation = "";
+    let resolvedData = {};
+
+    try {
+      const dummyRapidoUrl = process.env.DUMMYRAPIDO_URL || 'http://localhost:5000';
+      const mlServiceUrl = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+
+      // 1. Fetch Partner's City/Address
+      const profileRes = await axios.get(`${dummyRapidoUrl}/api/partners/profile/${partnerId}`);
+      if (profileRes.data && profileRes.data.partner) {
+        city = profileRes.data.partner.address;
+        
+        if (city) {
+          // 2. Resolve geocode
+          const geocodeRes = await axios.get(`${mlServiceUrl}/api/ml/geocode?city=${encodeURIComponent(city)}`);
+          pincode = geocodeRes.data && geocodeRes.data.pincode;
+          
+          // 3. Query ML-Service risk-score
+          const riskRes = await axios.post(`${mlServiceUrl}/api/ml/risk-score`, {
+            pincode: pincode || "",
+            season: 'monsoon',
+            zoneType: 'urban',
+            city: city
+          });
+          
+          if (riskRes.data) {
+            riskAdjustment = riskRes.data.premiumAdjustment || 0;
+            riskScore = riskRes.data.riskScore || 0;
+            riskLevel = riskRes.data.riskLevel || "low";
+            finalAmount += riskAdjustment;
+            resolvedData = riskRes.data;
+
+            if (riskAdjustment > 0) {
+              explanation = `₹${riskAdjustment} zone surcharge applied because your registered city (${city}) has a historical average of ${riskRes.data.avg_rain_days_per_month} rain days/month in monsoon and is classified as a ${riskLevel}-risk zone by our Random Forest model.`;
+            } else {
+              explanation = `Standard base rate active. Your registered city (${city}) is classified as a low-risk zone for flood and strike disruptions.`;
+            }
+          }
+        }
+      }
+    } catch (riskErr) {
+      console.warn(`[PolicyService] Dynamic risk pricing preview failed:`, riskErr.message);
+      explanation = "Standard base rate active (using default zone parameters).";
+    }
+
+    res.status(200).json({
+      planName,
+      baseAmount: parseFloat(amount),
+      adjustedAmount: finalAmount,
+      premiumAdjustment: riskAdjustment,
+      city: city || "Default",
+      pincode: pincode || "000000",
+      riskScore,
+      riskLevel,
+      explanation,
+      resolvedData
+    });
+  } catch (error) {
+    console.error("Failed to preview premium:", error);
+    res.status(500).json({ message: "Failed to preview premium" });
+  }
+});
+
 
 // ✅ Cron Job Endpoint: Inactivity auto-pause checks (2 weeks zero activity)
 app.post('/api/policy/cron/inactivity-check', async (req, res) => {
@@ -384,18 +472,35 @@ app.post('/api/policy/cron/weekly-premium-adjustment', async (req, res) => {
         };
         const basePrice = basePriceMap[plan] || 35;
         let finalWeeklyPremium = basePrice + premiumAdjustment;
-
-        // Ensure minimum weekly premium is 10 and max is 100
         finalWeeklyPremium = Math.max(10, Math.min(100, Math.round(finalWeeklyPremium)));
+        const finalAdjustment = finalWeeklyPremium - basePrice;
+
+        // Construct dynamic explanation based on active weather metrics
+        let weeklyExplanation = "";
+        if (finalAdjustment > 0) {
+          const reasons = [];
+          if (weatherForecast.condition === 'rain') reasons.push("rain forecast");
+          if (weatherForecast.temp >= 45) reasons.push("heatwave warning");
+          if (peakAqi >= 300) reasons.push("severe air pollution");
+          if (payouts.length > 2) reasons.push("high claims frequency");
+          
+          if (reasons.length === 0) reasons.push("upcoming weather risks");
+          weeklyExplanation = `₹${finalAdjustment} weather surcharge applied due to ${reasons.join(", ")} in your zone.`;
+        } else if (finalAdjustment < 0) {
+          weeklyExplanation = `₹${Math.abs(finalAdjustment)} clear weather discount applied due to safe forecast conditions and low claim velocity.`;
+        } else {
+          weeklyExplanation = "Standard weekly rate active (standard weather and clear road conditions).";
+        }
 
         // G. Update PaymentService database
         await axios.post(`${paymentServiceUrl}/api/payments/update-premium`, {
           userId,
-          amount: finalWeeklyPremium
+          amount: finalWeeklyPremium,
+          explanation: weeklyExplanation
         });
 
         console.log(`[PolicyService] Adjusted premium for ${userId} (${plan}): Base ₹${basePrice} -> New weekly premium ₹${finalWeeklyPremium} (adjustment: ₹${premiumAdjustment.toFixed(2)})`);
-        adjustedUsers.push({ userId, plan, basePrice, newPremium: finalWeeklyPremium, adjustment: premiumAdjustment });
+        adjustedUsers.push({ userId, plan, basePrice, newPremium: finalWeeklyPremium, adjustment: premiumAdjustment, explanation: weeklyExplanation });
 
       } catch (userErr) {
         console.error(`[PolicyService] Failed to calculate weekly premium adjustment for user ${userId}:`, userErr.message);

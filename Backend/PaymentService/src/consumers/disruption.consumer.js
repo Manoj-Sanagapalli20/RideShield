@@ -28,6 +28,26 @@ const startDisruptionConsumer = async () => {
       console.log(`⏳ Processing payout for User ${data.userId}...`);
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Check if a record already exists for this user and date
+      const existing = await DisruptionPayout.findOne({ userId: data.userId, date: data.date });
+      
+      let statusToSave = data.status || 'PROCESSED';
+      
+      if (existing) {
+        // If already PROCESSED or REJECTED, do not alter it (terminal state)
+        if (existing.status === 'PROCESSED' || existing.status === 'REJECTED') {
+          console.log(`ℹ️ Disruption payout for User ${data.userId} on ${data.date} is already in a terminal state (${existing.status}). Skipping update.`);
+          channel.ack(msg);
+          return;
+        }
+        
+        // If the existing record is in REVIEW, preserve the REVIEW status
+        // so that subsequent automated checks do not auto-approve or overwrite it.
+        if (existing.status === 'REVIEW') {
+          statusToSave = 'REVIEW';
+        }
+      }
+
       // Save or update to database (upsert by userId and date to prevent duplicate records)
       await DisruptionPayout.findOneAndUpdate(
         { userId: data.userId, date: data.date },
@@ -36,14 +56,14 @@ const startDisruptionConsumer = async () => {
           amount: parseFloat(data.amount),
           disruptedHours: data.disruptedHours,
           reason: data.reason,
-          status: data.status || 'PROCESSED',
+          status: statusToSave,
           priority: data.priority || 'normal',
           timestamp: data.timestamp || new Date()
         },
         { upsert: true, new: true }
       );
       
-      console.log(`✅ Disruption payout record saved for user ${data.userId}. Total Payout: ₹${data.amount}`);
+      console.log(`✅ Disruption payout record saved for user ${data.userId}. Total Payout: ₹${data.amount} (Status: ${statusToSave})`);
       
       channel.ack(msg);
     } catch (error) {

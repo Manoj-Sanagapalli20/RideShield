@@ -481,10 +481,10 @@ RideShield uses three dedicated ML models, each solving a distinct problem in th
 **Purpose:** Assess the baseline risk level of a worker's zone and set their starting premium tier. This is the first ML decision RideShield makes about a worker — it determines how much they pay from day one.
 
 **Training Data:**
-- 3 years of IMD (India Meteorological Department) historical weather records per district — rain days, flood events, extreme heat days
-- Historical strike and bandh frequency per district sourced from news archives (NewsAPI historical data)
-- NDMA flood zone classification database — official government flood risk ratings per district
-- Synthetic claim rate data generated from known disruption patterns (used for hackathon; real data in production)
+- **IMD District Weather Records & NDMA Hazard Ratings Database:** For the prototype, the model trains dynamically on [imd_historical_data.csv](file:///c:/RideShield/Backend/ML-Service/app/data/imd_historical_data.csv) containing curated historical weather averages, CPCB AQI records, NDMA flood zones, and news strike counts.
+  - *Full Coverage:* Andhra Pradesh & Telangana districts (20–30 junctions/towns per state).
+  - *National Coverage:* 10–11 major cities/junctions for all other 27 states across India.
+  - *Real-World Mapping:* In commercial production, this local database can be directly connected to raw live IMD data portals and NDMA real-time maps.
 
 **Input Features:**
 
@@ -599,11 +599,27 @@ In RideShield's context: a genuine worker claiming rain disruption looks like hu
 | `registration_cohort_size` | Numerical | Many registrations same hour = ring |
 | `device_fingerprint_cluster_score` | Numerical | Same app = coordinated ring |
 
-**Output:** Anomaly Score (0–1)
-- < 0.3 → Normal → Auto-approve payout
-- 0.3–0.5 → Mild anomaly → Send verification SMS, release on confirmation
-- 0.5–0.7 → Suspicious → Hold 48 hours, Zone Manager manual review
-- > 0.7 → High fraud risk → Block payout, flag account, trigger ring investigation
+**Output:** Anomaly Score (0–1) and Verdict:
+- **Anomaly Score < 0.30** (Verdict: `approve`) → **Auto-Approve**: Payout proceeds normally and is scheduled for the next 6:00 AM IST cycle.
+- **Anomaly Score 0.30 to 0.54** (Verdict: `review`) → **Pending Audit (Manual Review)**: Held in `REVIEW` status for administrator audit. Warning badges and a full 8-metric grid are displayed in the Admin Dashboard.
+- **Anomaly Score >= 0.55** (Verdict: `flag`) → **Auto-Reject (Blocked)**: Blocked immediately with status `REJECTED` to prevent pool draining.
+
+To provide explainability for the ML decision, individual metrics are classified into risk bands (Safe, Elevated/Review, Critical/Anomalous) and map to real-time warning badges in the Admin Dashboard:
+
+> [!WARNING]
+> **Adversarial Security Note (Production Best Practice):** 
+> While these exact thresholds are documented here for hackathon evaluation and audit transparency, in a commercial production environment, these constant values should remain strictly confidential. Publishing exact thresholds allows malicious users to "game" the system by calibrating their spoofing bots (e.g., simulating fake accelerometer motion at 0.42 or faking a 95-minute login delay) to stay just inside the "Safe" limits. In production, these parameters are kept private and evaluated dynamically.
+
+| Feature Name | Safe / Low Risk (Green) | Elevated / Medium Risk (Amber Badge) | Critical / High Risk (Red Flag) |
+| :--- | :--- | :--- | :--- |
+| **GPS Match** | `1` (GPS matches Network Tower) | — | `0` (triangulation mismatch) |
+| **Device Motion** | `0.4` to `1.0` | `0.15` to `0.39` (low device motion) | `< 0.15` (completely stationary) |
+| **Login to Claim** | `>= 90` minutes | `15` to `89` minutes (short gap) | `< 15` minutes (instant claim) |
+| **Orders (3hr)** | `>= 2` orders | `1` order (low order volume) | `0` orders (zero active volume) |
+| **Claims (30d)** | `0` or `1` claim | `2` claims (multiple recent claims) | `>= 3` claims (extreme frequency) |
+| **Neighbors (Claims)**| `>= 5` neighbors | `1` to `4` neighbors (low neighbor activity) | `0` neighbors (isolated claim) |
+| **Cohort Size** | `< 15` accounts in batch | `15` to `29` accounts | `>= 30` accounts (mass registration) |
+| **Fingerprint Score** | `<= 0.20` | `0.21` to `0.40` (elevated similarity) | `> 0.40` (device sharing clone) |
 
 **Why Isolation Forest over alternatives:**
 - **No labelled fraud data needed** — we cannot train a supervised classifier without historical fraud examples. Isolation Forest detects anomalies without any labels.

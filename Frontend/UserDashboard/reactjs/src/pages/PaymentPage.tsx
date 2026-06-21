@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, CreditCard, Lock, Smartphone, CheckCircle } from "lucide-react";
 import { motion } from "motion/react";
@@ -10,23 +10,48 @@ export default function PaymentPage() {
     const [method, setMethod] = useState<"card" | "upi">("card");
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [previewData, setPreviewData] = useState<any>(null);
+    const [previewLoading, setPreviewLoading] = useState(true);
 
     // Get plan details pushed from PlanSelectionPage
     const plan = location.state?.plan || { name: 'Standard RideShield', price: 149 };
+    const partnerId = localStorage.getItem('partnerId') || 'drv_test_123';
+
+    useEffect(() => {
+        const fetchPreview = async () => {
+            try {
+                const response = await fetch('http://localhost:5002/api/policy/preview-premium', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        partnerId: partnerId,
+                        planName: plan.name,
+                        amount: plan.price
+                    })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setPreviewData(data);
+                }
+            } catch (err) {
+                console.error("Error fetching premium preview:", err);
+            } finally {
+                setPreviewLoading(false);
+            }
+        };
+        fetchPreview();
+    }, [plan, partnerId]);
 
     const handlePayment = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
-            // Mock a partner ID from localStorage, or use a default test ID
             const partnerData = localStorage.getItem('rideShieldUser');
-            let partnerId = localStorage.getItem('partnerId') || 'drv_test_123';
             let emailAddress = 'driver@rideshield.com';
             
             if (partnerData) {
                 const parsed = JSON.parse(partnerData);
-                // Strictly use the verified localStorage token, skipping faulty payload schemas
                 emailAddress = parsed.email || emailAddress;
             }
 
@@ -43,7 +68,6 @@ export default function PaymentPage() {
 
             if (response.ok) {
                 setSuccess(true);
-                // Mark user as having an active policy so they don't see Plan pages
                 localStorage.setItem('hasActivePlan', 'true');
                 toast.success("Payment successful! Receipt sent via Email.", { icon: '💳' });
                 setTimeout(() => {
@@ -94,8 +118,47 @@ export default function PaymentPage() {
                         </div>
                         <div className="flex flex-col">
                             <span className="text-sm font-semibold text-slate-300 opacity-80">RideShield Coverage</span>
-                            <span className="text-xl font-bold text-white tracking-tight">₹{plan.price}.00 <span className="text-xs text-slate-500 font-normal uppercase tracking-wider ml-1">Weekly</span></span>
+                            <span className="text-xl font-bold text-white tracking-tight">₹{previewData ? previewData.adjustedAmount : plan.price}.00 <span className="text-xs text-slate-500 font-normal uppercase tracking-wider ml-1">Weekly</span></span>
                         </div>
+                    </div>
+
+                    {/* Premium Pricing Breakdown Card */}
+                    <div className="p-6 border-b border-white/5 bg-white/[0.02]">
+                        <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Premium Breakdown</p>
+                        
+                        {previewLoading ? (
+                            <div className="space-y-2 animate-pulse">
+                                <div className="h-4 bg-white/5 rounded w-3/4"></div>
+                                <div className="h-4 bg-white/5 rounded w-1/2"></div>
+                            </div>
+                        ) : (
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between text-slate-400">
+                                    <span>Base Premium ({plan.name})</span>
+                                    <span className="text-white font-medium">₹{plan.price}.00</span>
+                                </div>
+                                
+                                {previewData && previewData.premiumAdjustment > 0 && (
+                                    <div className="flex justify-between text-amber-400">
+                                        <span className="flex items-center gap-1.5">
+                                            ⚠️ Zone Surcharge (Random Forest)
+                                        </span>
+                                        <span className="font-bold">+₹{previewData.premiumAdjustment}.00</span>
+                                    </div>
+                                )}
+                                
+                                <div className="flex justify-between border-t border-white/5 pt-2 text-white font-semibold">
+                                    <span>Total Weekly Premium</span>
+                                    <span className="text-primary-400 text-base">₹{previewData ? previewData.adjustedAmount : plan.price}.00</span>
+                                </div>
+
+                                {previewData && (
+                                    <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-400 leading-relaxed font-medium">
+                                        {previewData.explanation}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="p-6 pb-4">
@@ -163,7 +226,7 @@ export default function PaymentPage() {
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
                                 )}
-                                {loading ? 'Processing...' : `Pay ₹${plan.price}.00`}
+                                {loading ? 'Processing...' : `Pay ₹${previewData ? previewData.adjustedAmount : plan.price}.00`}
                             </button>
                         </form>
                     </div>

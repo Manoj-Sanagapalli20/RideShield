@@ -856,8 +856,72 @@ export default function App() {
                           const isPending = payout.status === 'REVIEW';
                           const isHighPriority = payout.priority === 'high';
                           
-                          const anomalyMatch = payout.reason.match(/Anomaly Score: ([0-9.]+)/i);
-                          const anomalyScore = anomalyMatch ? parseFloat(anomalyMatch[1]) : null;
+                          // Structured reason parsing helper
+                          const parseAuditReason = (reasonStr) => {
+                            if (!reasonStr) return { main: "", flags: [], isAudit: false, anomalyScore: null, metrics: null };
+                            
+                            // Check for structured review reason with metrics
+                            const auditMatch = reasonStr.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)\. Flagged for: (.*?)\. Metrics -> (.*?)\. Claim Details: (.*)$/);
+                            if (auditMatch) {
+                              const metricsStr = auditMatch[3];
+                              const gpsMatch = metricsStr.match(/GPS Match: (\d+)/)?.[1] || "";
+                              const motion = metricsStr.match(/Motion: ([0-9.]+)/)?.[1] || "";
+                              const loginGap = metricsStr.match(/Login Gap: (\d+m)/)?.[1] || "";
+                              const orders = metricsStr.match(/Orders: (\d+)/)?.[1] || "";
+                              const claims30d = metricsStr.match(/Claims 30d: (\d+)/)?.[1] || "";
+                              const neighbors = metricsStr.match(/Neighbors: (\d+)/)?.[1] || "";
+                              const cohort = metricsStr.match(/Cohort: (\d+)/)?.[1] || "";
+                              const fingerprint = metricsStr.match(/Fingerprint: ([0-9.]+)/)?.[1] || "";
+
+                              return {
+                                isAudit: true,
+                                anomalyScore: parseFloat(auditMatch[1]),
+                                flags: auditMatch[2].split(" | ").map(f => f.trim()).filter(Boolean),
+                                metrics: { gpsMatch, motion, loginGap, orders, claims30d, neighbors, cohort, fingerprint },
+                                main: auditMatch[4]
+                              };
+                            }
+
+                            // Fallback for simple structured review reason
+                            const simpleAuditMatch = reasonStr.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)\. Flagged for: (.*?)\. Claim Details: (.*)$/);
+                            if (simpleAuditMatch) {
+                              return {
+                                isAudit: true,
+                                anomalyScore: parseFloat(simpleAuditMatch[1]),
+                                flags: simpleAuditMatch[2].split(" | ").map(f => f.trim()).filter(Boolean),
+                                metrics: null,
+                                main: simpleAuditMatch[3]
+                              };
+                            }
+
+                            // Check for legacy/mock trigger format:
+                            // "Flagged: High Device Fingerprint Cluster Score (Anomaly Score: 0.42)"
+                            const legacyMatch = reasonStr.match(/^Flagged: (.*?) \(Anomaly Score: ([0-9.]+)\)$/i);
+                            if (legacyMatch) {
+                              return {
+                                isAudit: true,
+                                anomalyScore: parseFloat(legacyMatch[2]),
+                                flags: [legacyMatch[1].trim()],
+                                metrics: null,
+                                main: "Legacy Test Claim"
+                              };
+                            }
+
+                            // Check for standard anomaly score matches in the text
+                            const anyAnomalyMatch = reasonStr.match(/Anomaly Score: ([0-9.]+)/i);
+                            const anyScore = anyAnomalyMatch ? parseFloat(anyAnomalyMatch[1]) : null;
+                            
+                            return {
+                              isAudit: anyScore !== null,
+                              anomalyScore: anyScore,
+                              flags: [],
+                              metrics: null,
+                              main: reasonStr
+                            };
+                          };
+
+                          const parsed = parseAuditReason(payout.reason);
+                          const anomalyScore = parsed.anomalyScore;
 
                           return (
                             <tr key={payout._id} className="hover:bg-white/[0.01] transition-colors">
@@ -875,8 +939,79 @@ export default function App() {
                               <td className="px-6 py-4 text-xs font-medium text-slate-400 font-mono">
                                 {payout.date}
                               </td>
-                              <td className="px-6 py-4 text-xs font-medium text-slate-300 max-w-xs truncate" title={payout.reason}>
-                                {payout.reason}
+                              <td className="px-6 py-4 text-xs font-medium text-slate-300 max-w-md whitespace-normal leading-relaxed">
+                                <div className="space-y-1.5">
+                                  {/* Main Disruption Reason */}
+                                  <div className="font-semibold text-slate-200">
+                                    {parsed.main}
+                                  </div>
+                                  
+                                  {/* ML Fraud Flags */}
+                                  {parsed.isAudit && parsed.flags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                      {parsed.flags.map((flag, idx) => (
+                                        <div key={idx} className="flex items-center gap-1.5 text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded w-fit">
+                                          <span>⚠️</span>
+                                          <span>{flag}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Metrics Grid */}
+                                  {parsed.isAudit && parsed.metrics && (
+                                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2.5 p-2.5 bg-white/[0.02] border border-white/5 rounded-xl text-[10px] text-slate-400 font-medium">
+                                      <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <span>GPS Match:</span>
+                                        <span className={parsed.metrics.gpsMatch === '1' ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>
+                                          {parsed.metrics.gpsMatch === '1' ? 'Yes' : 'No'}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <span>Device Motion:</span>
+                                        <span className={parseFloat(parsed.metrics.motion) < 0.4 ? 'text-red-400 font-bold' : 'text-slate-200 font-bold'}>
+                                          {parsed.metrics.motion}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <span>Login to Claim:</span>
+                                        <span className={parseInt(parsed.metrics.loginGap) < 60 ? 'text-red-450 font-bold' : 'text-slate-200 font-bold'}>
+                                          {parsed.metrics.loginGap}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <span>Orders (3hr):</span>
+                                        <span className={parseInt(parsed.metrics.orders) <= 1 ? 'text-red-400 font-bold' : 'text-slate-200 font-bold'}>
+                                          {parsed.metrics.orders}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <span>Claims (30d):</span>
+                                        <span className={parseInt(parsed.metrics.claims30d) >= 2 ? 'text-red-400 font-bold' : 'text-slate-200 font-bold'}>
+                                          {parsed.metrics.claims30d}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between border-b border-white/5 pb-1">
+                                        <span>Fingerprint Score:</span>
+                                        <span className={parseFloat(parsed.metrics.fingerprint) > 0.25 ? 'text-red-450 font-bold' : 'text-slate-200 font-bold'}>
+                                          {parsed.metrics.fingerprint}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between pb-0.5">
+                                        <span>Neighbors (Claims):</span>
+                                        <span className={parseInt(parsed.metrics.neighbors) < 5 ? 'text-red-400 font-bold' : 'text-slate-200 font-bold'}>
+                                          {parsed.metrics.neighbors}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between pb-0.5">
+                                        <span>Cohort Size:</span>
+                                        <span className={parseInt(parsed.metrics.cohort) >= 15 ? 'text-red-400 font-bold' : 'text-slate-200 font-bold'}>
+                                          {parsed.metrics.cohort}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-6 py-4 font-bold text-white font-mono text-xs">
                                 ₹{payout.amount.toFixed(2)}

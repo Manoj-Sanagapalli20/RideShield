@@ -57,7 +57,7 @@ async function startServer() {
         const record = await Payment.findOne({ userId, status: { $in: ['SUCCESS', 'PAUSED'] } });
 
         if (record) {
-          res.status(200).json({ hasPlan: true, plan: record.plan, status: record.status, amount: record.amount });
+          res.status(200).json({ hasPlan: true, plan: record.plan, status: record.status, amount: record.amount, explanation: record.explanation });
         } else {
           res.status(200).json({ hasPlan: false });
         }
@@ -91,13 +91,17 @@ async function startServer() {
     // Update premium amount API
     app.post('/api/payments/update-premium', async (req, res) => {
       try {
-        const { userId, amount } = req.body;
+        const { userId, amount, explanation } = req.body;
         if (!userId || amount === undefined) {
           return res.status(400).json({ error: 'Missing required fields' });
         }
+        const updateData = { amount };
+        if (explanation !== undefined) {
+          updateData.explanation = explanation;
+        }
         const record = await Payment.findOneAndUpdate(
           { userId, status: { $in: ['SUCCESS', 'PAUSED'] } },
-          { amount },
+          updateData,
           { new: true }
         );
         if (record) {

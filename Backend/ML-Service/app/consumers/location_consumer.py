@@ -103,7 +103,8 @@ def callback(ch, method, properties, body):
                 downstream_payload = {
                     "userId": user_id,
                     "email": (data.get("extraData") or {}).get("email"),
-                    "results": cached
+                    "results": cached,
+                    "extraData": data.get("extraData") or {}
                 }
                 ch.basic_publish(
                     exchange='',
@@ -138,7 +139,8 @@ def callback(ch, method, properties, body):
             downstream_payload = {
                 "userId": user_id,
                 "email": (data.get("extraData") or {}).get("email"),
-                "results": disruptions_data
+                "results": disruptions_data,
+                "extraData": data.get("extraData") or {}
             }
             ch.basic_publish(
                 exchange='',

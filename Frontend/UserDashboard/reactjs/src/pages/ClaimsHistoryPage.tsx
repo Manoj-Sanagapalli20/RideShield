@@ -16,8 +16,17 @@ interface Payout {
 
 const spring = { type: "spring" as const, stiffness: 300, damping: 70, mass: 1 };
 
+const getDisruptionDetails = (reasonStr: string) => {
+    if (!reasonStr) return "";
+    const match = reasonStr.match(/Claim Details: (.*)$/);
+    return match ? match[1] : reasonStr;
+};
+
 const parseReason = (reasonStr: string) => {
     if (!reasonStr) return { approved: [], rejected: [], isFullRejection: false };
+    
+    // Clean to only parse the actual disruption slot details
+    reasonStr = getDisruptionDetails(reasonStr);
     
     if (reasonStr.startsWith("Rejected:")) {
         return {
@@ -65,10 +74,18 @@ const parseReason = (reasonStr: string) => {
 
 const getApprovedReasonOnly = (reason: string) => {
     if (!reason) return "";
+    
+    const scoreMatch = reason.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)/);
+    const detailsPart = getDisruptionDetails(reason).split('. Rejections: ')[0];
+    
+    if (scoreMatch) {
+        return `Pending Audit (Anomaly Score: ${scoreMatch[1]}) - ${detailsPart}`;
+    }
+    
     if (reason.startsWith("Rejected:")) {
         return reason;
     }
-    return reason.split('. Rejections: ')[0];
+    return detailsPart;
 };
 
 export default function ClaimsHistoryPage() {
@@ -76,6 +93,22 @@ export default function ClaimsHistoryPage() {
     const [totalPayout, setTotalPayout] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
+
+    const isPayoutPaid = (p: Payout) => {
+        const dateStr = p.createdAt || p.date;
+        if (!dateStr) return true;
+        const createdTime = new Date(dateStr);
+        if (isNaN(createdTime.getTime())) return true;
+
+        const payoutTime = new Date(createdTime);
+        if (createdTime.getHours() < 6) {
+            payoutTime.setHours(6, 0, 0, 0);
+        } else {
+            payoutTime.setDate(createdTime.getDate() + 1);
+            payoutTime.setHours(6, 0, 0, 0);
+        }
+        return new Date() >= payoutTime;
+    };
 
     const userId = localStorage.getItem("partnerId") || "";
 
@@ -159,6 +192,16 @@ export default function ClaimsHistoryPage() {
                                                      <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
                                                          Under Review
                                                      </span>
+                                                 ) : payout.status === 'PROCESSED' ? (
+                                                     isPayoutPaid(payout) ? (
+                                                         <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                             Credited to UPI
+                                                         </span>
+                                                     ) : (
+                                                         <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                             Awaiting Payout
+                                                         </span>
+                                                     )
                                                  ) : null}
                                                  {payout.priority === 'high' && !isRejected && payout.status !== 'REVIEW' && (
                                                       <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
@@ -227,9 +270,17 @@ export default function ClaimsHistoryPage() {
                                              ? 'text-red-400 bg-red-500/10 border-red-500/20' 
                                              : selectedPayout.status === 'REVIEW'
                                                  ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                                                 : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                                 : isPayoutPaid(selectedPayout)
+                                                     ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                                     : 'text-blue-400 bg-blue-500/10 border-blue-500/20'
                                      }`}>
-                                         {selectedPayout.status === 'REJECTED' ? 'Rejected' : selectedPayout.status === 'REVIEW' ? 'Reviewing' : 'Approved'}
+                                         {selectedPayout.status === 'REJECTED' 
+                                             ? 'Rejected' 
+                                             : selectedPayout.status === 'REVIEW' 
+                                                 ? 'Reviewing' 
+                                                 : isPayoutPaid(selectedPayout)
+                                                     ? 'Credited to UPI' 
+                                                     : 'Approved (Awaiting Payout)'}
                                      </span>
                                 </div>
                             </div>

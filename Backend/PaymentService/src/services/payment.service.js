@@ -5,7 +5,7 @@ const eventService = require('./event.service');
 
 const processSubscription = async (event) => {
   try {
-    const { eventId, userId, plan, amount, email } = event;
+    const { eventId, userId, plan, amount, email, explanation } = event;
 
     console.log(`Processing subscription purchase for user: ${userId}`, { eventId });
 
@@ -23,6 +23,7 @@ const processSubscription = async (event) => {
       email,
       plan,
       amount,
+      explanation,
       status: 'PENDING'
     });
     await paymentRecord.save();

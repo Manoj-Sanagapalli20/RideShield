@@ -757,7 +757,35 @@ const processCompensation = async (data) => {
                     console.warn(`[User: ${userId}] 🚨 TRANSACTION BLOCKED BY FRAUD DETECTION ENGINE! Anomaly Score: ${fraudData.anomalyScore}`);
                 } else if (fraudData.verdict === 'review') {
                     status = 'REVIEW';
-                    console.log(`[User: ${userId}] ⚠️ Transaction marked for manual review (Anomaly Score: ${fraudData.anomalyScore}) for all tiers. Status set to REVIEW.`);
+                    const flags = [];
+                    if (gpsZoneVsCellTowerZoneMatch === 0) {
+                        flags.push("GPS/Cell triangulation mismatch");
+                    }
+                    if (accelerometerMotionDuringClaim < 0.4) {
+                        flags.push(`Low device motion during claim (${accelerometerMotionDuringClaim})`);
+                    }
+                    if (loginToTriggerGapMinutes < 90) {
+                        flags.push(`Short login-to-claim gap (${loginToTriggerGapMinutes.toFixed(0)} mins)`);
+                    }
+                    if (claimsLast30Days >= 2) {
+                        flags.push(`Multiple recent claims (${claimsLast30Days} in 30 days)`);
+                    }
+                    if (deviceFingerprintClusterScore > 0.25) {
+                        flags.push(`Elevated device fingerprint similarity (${deviceFingerprintClusterScore.toFixed(2)})`);
+                    }
+                    if (registrationCohortSize >= 15) {
+                        flags.push(`Large registration cohort (${registrationCohortSize} drivers)`);
+                    }
+                    if (orders3hrBeforeDisruption <= 1) {
+                        flags.push(`Low order volume before claim (${orders3hrBeforeDisruption} orders)`);
+                    }
+                    if (neighborClaimsSameWindow < 5) {
+                        flags.push(`Low neighbor claim activity (${neighborClaimsSameWindow} claims)`);
+                    }
+                    
+                    const flagStr = flags.length > 0 ? flags.join(" | ") : "ML Anomaly Score elevated";
+                    reasonStr = `Pending Audit (Anomaly Score: ${fraudData.anomalyScore}). Flagged for: ${flagStr}. Metrics -> GPS Match: ${gpsZoneVsCellTowerZoneMatch}, Motion: ${accelerometerMotionDuringClaim}, Login Gap: ${loginToTriggerGapMinutes.toFixed(0)}m, Orders: ${orders3hrBeforeDisruption}, Claims 30d: ${claimsLast30Days}, Neighbors: ${neighborClaimsSameWindow}, Cohort: ${registrationCohortSize}, Fingerprint: ${deviceFingerprintClusterScore.toFixed(2)}. Claim Details: ${reasonStr}`;
+                    console.log(`[User: ${userId}] ⚠️ Transaction marked for manual review: ${reasonStr}`);
                 }
             } catch (err) {
                 console.error(`[User: ${userId}] ⚠️ ML-Service fraud check failed: ${err.message}. Proceeding with standard validation.`);

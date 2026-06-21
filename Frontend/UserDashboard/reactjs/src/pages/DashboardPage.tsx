@@ -38,8 +38,17 @@ function getGreeting() {
     return "Good evening";
 }
 
+const getDisruptionDetails = (reasonStr: string) => {
+    if (!reasonStr) return "";
+    const match = reasonStr.match(/Claim Details: (.*)$/);
+    return match ? match[1] : reasonStr;
+};
+
 const parseReason = (reasonStr: string) => {
     if (!reasonStr) return { approved: [], rejected: [], isFullRejection: false };
+    
+    // Clean to only parse the actual disruption slot details
+    reasonStr = getDisruptionDetails(reasonStr);
     
     if (reasonStr.startsWith("Rejected:")) {
         return {
@@ -87,10 +96,18 @@ const parseReason = (reasonStr: string) => {
 
 const getApprovedReasonOnly = (reason: string) => {
     if (!reason) return "";
+    
+    const scoreMatch = reason.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)/);
+    const detailsPart = getDisruptionDetails(reason).split('. Rejections: ')[0];
+    
+    if (scoreMatch) {
+        return `Pending Audit (Anomaly Score: ${scoreMatch[1]}) - ${detailsPart}`;
+    }
+    
     if (reason.startsWith("Rejected:")) {
         return reason;
     }
-    return reason.split('. Rejections: ')[0];
+    return detailsPart;
 };
 
 const isRealDisruption = (reason: string) => {
@@ -403,6 +420,22 @@ export default function DashboardPage() {
     };
     const weeklyLimit = weeklyLimitMap[planNameClean] || 600;
 
+    const isPayoutPaid = (p) => {
+        const dateStr = p.createdAt || p.timestamp || p.date;
+        if (!dateStr) return true;
+        const createdTime = new Date(dateStr);
+        if (isNaN(createdTime.getTime())) return true;
+
+        const payoutTime = new Date(createdTime);
+        if (createdTime.getHours() < 6) {
+            payoutTime.setHours(6, 0, 0, 0);
+        } else {
+            payoutTime.setDate(createdTime.getDate() + 1);
+            payoutTime.setHours(6, 0, 0, 0);
+        }
+        return new Date() >= payoutTime;
+    };
+
     const getWeeklySpent = () => {
         if (!payouts || payouts.length === 0) return 0;
         
@@ -417,7 +450,8 @@ export default function DashboardPage() {
         endOfWeek.setHours(23, 59, 59, 999);
 
         const processedPayoutsThisWeek = payouts.filter(p => {
-            if (p.status === 'REJECTED') return false;
+            if (p.status !== 'PROCESSED') return false;
+            if (!isPayoutPaid(p)) return false;
             let pDate;
             if (p.date) {
                 const parts = p.date.split('-');
@@ -431,8 +465,67 @@ export default function DashboardPage() {
         return processedPayoutsThisWeek.reduce((sum, p) => sum + (p.amount || 0), 0);
     };
 
+    const getWeeklyApprovedAwaiting = () => {
+        if (!payouts || payouts.length === 0) return 0;
+        
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        const day = now.getDay();
+        startOfWeek.setDate(now.getDate() - day);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const awaitingPayoutsThisWeek = payouts.filter(p => {
+            if (p.status !== 'PROCESSED') return false;
+            if (isPayoutPaid(p)) return false;
+            let pDate;
+            if (p.date) {
+                const parts = p.date.split('-');
+                pDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+            } else {
+                pDate = new Date(p.createdAt || p.timestamp || '');
+            }
+            return pDate >= startOfWeek && pDate <= endOfWeek;
+        });
+
+        return awaitingPayoutsThisWeek.reduce((sum, p) => sum + (p.amount || 0), 0);
+    };
+
+    const getWeeklyPending = () => {
+        if (!payouts || payouts.length === 0) return 0;
+        
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        const day = now.getDay();
+        startOfWeek.setDate(now.getDate() - day);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const pendingPayoutsThisWeek = payouts.filter(p => {
+            if (p.status !== 'REVIEW') return false;
+            let pDate;
+            if (p.date) {
+                const parts = p.date.split('-');
+                pDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 12, 0, 0);
+            } else {
+                pDate = new Date(p.createdAt || p.timestamp || '');
+            }
+            return pDate >= startOfWeek && pDate <= endOfWeek;
+        });
+
+        return pendingPayoutsThisWeek.reduce((sum, p) => sum + (p.amount || 0), 0);
+    };
+
     const weeklySpent = getWeeklySpent();
-    const remainingWeeklyBudget = Math.max(0, weeklyLimit - weeklySpent);
+    const weeklyAwaiting = getWeeklyApprovedAwaiting();
+    const weeklyPending = getWeeklyPending();
+    const remainingWeeklyBudget = Math.max(0, weeklyLimit - weeklySpent - weeklyAwaiting);
 
     // SVG Circular progress gauge stats
     const radius = 30;
@@ -579,21 +672,45 @@ export default function DashboardPage() {
                                     </div>
                                 </div>
                                 {policy && (
-                                    <div className="flex justify-between items-center mt-2.5 pt-2.5 border-t border-white/5">
-                                        <div>
-                                            <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Weekly Credited</span>
-                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                <span className="text-sm font-semibold text-white">₹{weeklySpent.toFixed(2)}</span>
-                                                {weeklySpent > 0 && (
-                                                    <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Credited to UPI</span>
-                                                )}
+                                    <>
+                                        <div className="flex justify-between items-center mt-2.5 pt-2.5 border-t border-white/5">
+                                            <div>
+                                                <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Weekly Credited</span>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <span className="text-sm font-semibold text-white">₹{weeklySpent.toFixed(2)}</span>
+                                                    {weeklySpent > 0 && (
+                                                        <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Credited to UPI</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Remaining Weekly Limit</span>
+                                                <span className="text-sm font-bold text-emerald-400">₹{remainingWeeklyBudget.toFixed(2)} / ₹{weeklyLimit}</span>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Remaining Weekly Limit</span>
-                                            <span className="text-sm font-bold text-emerald-400">₹{remainingWeeklyBudget.toFixed(2)} / ₹{weeklyLimit}</span>
-                                        </div>
-                                    </div>
+                                        {weeklyPending > 0 && (
+                                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/5 border-dashed">
+                                                <div>
+                                                    <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Weekly Pending Review</span>
+                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                        <span className="text-sm font-semibold text-white">₹{weeklyPending.toFixed(2)}</span>
+                                                        <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 animate-pulse">Awaiting Admin Approval</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {weeklyAwaiting > 0 && (
+                                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/5 border-dashed">
+                                                <div>
+                                                    <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Weekly Approved (Awaiting Payout)</span>
+                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                        <span className="text-sm font-semibold text-white">₹{weeklyAwaiting.toFixed(2)}</span>
+                                                        <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400">Approved (Payout at 6:00 AM)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                                 {(policy?.planName?.toLowerCase().trim() === 'pro' || policy?.planName?.toLowerCase().trim() === 'premium') && (
                                     <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg w-fit">
@@ -773,7 +890,7 @@ export default function DashboardPage() {
 
                     {/* Card 4 — Premium Plan & Upgrade */}
                     <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, ...spring }}
-                        className="bg-[#121214] border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[200px]">
+                        className="bg-[#121214] border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[220px]">
                         <div>
                             <div className="flex justify-between items-start">
                                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Premium Plan</h3>
@@ -781,15 +898,47 @@ export default function DashboardPage() {
                                     + Upgrade
                                 </Link>
                             </div>
-                            <div className="mt-4">
-                                <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Weekly Auto-Debit</span>
-                                <h2 className="text-3xl font-extrabold text-white tracking-tight">₹{activePremium}.00</h2>
-                                <p className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
-                                    <FiCalendar className="size-3.5" /> Next billing: Next Monday
-                                </p>
+                            <div className="mt-4 space-y-3">
+                                <div>
+                                    <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Weekly Auto-Debit</span>
+                                    <h2 className="text-3xl font-extrabold text-white tracking-tight">₹{activePremium}.00</h2>
+                                </div>
+
+                                {policy && (
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center">
+                                            {activePremium - (premiumMap[policy.planName] || 35) > 0 ? (
+                                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                                                    +₹{activePremium - (premiumMap[policy.planName] || 35)} Weather Surcharge
+                                                </span>
+                                            ) : activePremium - (premiumMap[policy.planName] || 35) < 0 ? (
+                                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                                    -₹{Math.abs(activePremium - (premiumMap[policy.planName] || 35))} Weather Discount
+                                                </span>
+                                            ) : (
+                                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400">
+                                                    Standard Base Rate
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                                            {policy.explanation || "Standard weekly base rate is active for your policy."}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="text-[10px] text-slate-500 flex flex-col gap-1 pt-1 border-t border-white/5 font-medium leading-relaxed">
+                                    <div className="flex items-center gap-1">
+                                        <FiCalendar className="size-3 text-slate-600" />
+                                        <span>Next Billing: Next Monday</span>
+                                    </div>
+                                    <p className="text-slate-600 text-[9px] italic">
+                                        Note: XGBoost weather pricing engine runs every Monday at 5:00 AM.
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                        <div className="pt-3 border-t border-white/5 flex items-center gap-2">
+                        <div className="pt-3 border-t border-white/5 flex items-center gap-2 mt-4">
                             <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
                             <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Payments Configured</span>
                         </div>
@@ -1004,6 +1153,17 @@ export default function DashboardPage() {
                                                                     Rejected
                                                                 </span>
                                                             )}
+                                                            {!isRejected && p.status === 'PROCESSED' && (
+                                                                isPayoutPaid(p) ? (
+                                                                    <span className="text-[8px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                                                        Credited to UPI
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-[8px] text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse">
+                                                                        Awaiting Payout
+                                                                    </span>
+                                                                )
+                                                            )}
                                                             {p.priority === 'high' && !isRejected && (
                                                                 <span className="text-[8px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                                                                     ⚡ Priority Dispatched
@@ -1096,14 +1256,22 @@ export default function DashboardPage() {
                                         {selectedPayout.status === 'REJECTED' ? '₹0.00' : `+₹${selectedPayout.amount}`}
                                     </span>
                                     <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider mt-2 border ${
-                                        selectedPayout.status === 'REJECTED' 
-                                            ? 'text-red-400 bg-red-500/10 border-red-500/20' 
-                                            : selectedPayout.status === 'REVIEW'
-                                                ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                                                : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                                    }`}>
-                                        {selectedPayout.status === 'REJECTED' ? 'Rejected' : selectedPayout.status === 'REVIEW' ? 'Reviewing' : 'Approved'}
-                                    </span>
+                                         selectedPayout.status === 'REJECTED' 
+                                             ? 'text-red-400 bg-red-500/10 border-red-500/20' 
+                                             : selectedPayout.status === 'REVIEW'
+                                                 ? 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                                                 : isPayoutPaid(selectedPayout)
+                                                     ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                                     : 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+                                     }`}>
+                                         {selectedPayout.status === 'REJECTED' 
+                                             ? 'Rejected' 
+                                             : selectedPayout.status === 'REVIEW' 
+                                                 ? 'Reviewing' 
+                                                 : isPayoutPaid(selectedPayout)
+                                                     ? 'Credited to UPI' 
+                                                     : 'Approved (Awaiting Payout)'}
+                                     </span>
                                 </div>
                             </div>
 
