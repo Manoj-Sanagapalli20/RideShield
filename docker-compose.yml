@@ -87,6 +87,7 @@ services:
       - PAYMENT_SERVICE_URL=http://payment-service:5003
       - ML_SERVICE_URL=http://ml-service:8000
       - DUMMYRAPIDO_URL=http://dummyrapido-backend:5000
+      - POLICY_SERVICE_URL=http://policy-service:5002
     env_file:
       - ./Backend/MainService/.env
     depends_on:
