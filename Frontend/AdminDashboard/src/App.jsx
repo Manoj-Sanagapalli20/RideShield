@@ -3,7 +3,7 @@ import {
   FiUsers, FiDollarSign, FiPercent, FiShield, FiActivity, 
   FiCheckCircle, FiXCircle, FiAlertTriangle, FiPlusCircle, 
   FiCalendar, FiMapPin, FiCompass, FiRefreshCw, FiGrid, FiArrowUpRight, FiSearch, FiGlobe,
-  FiCloudRain, FiSun, FiLock, FiAlertOctagon
+  FiCloudRain, FiSun, FiLock, FiAlertOctagon, FiMenu
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -65,8 +65,10 @@ const formatZoneName = (zoneStr) => {
 };
 
 // API Configurations
-const PAYMENT_SERVICE_URL = 'http://localhost:5003';
-const MAIN_SERVICE_URL = 'http://localhost:5005';
+const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || 'localhost';
+const PAYMENT_SERVICE_URL = `http://${BACKEND_IP}:5003`;
+const MAIN_SERVICE_URL = `http://${BACKEND_IP}:5005`;
+const ML_SERVICE_URL = `http://${BACKEND_IP}:8000`;
 
 const SERVICES = [
   { name: 'Auth Service', port: 5001, key: 'auth' },
@@ -129,6 +131,7 @@ export function LogoSVG({ className = "text-primary-500" }) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('analytics');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [analytics, setAnalytics] = useState({
     activeDriversCount: 0,
     totalPremiumsCollected: 0,
@@ -258,7 +261,7 @@ export default function App() {
     const healthStatus = {};
     for (const service of SERVICES) {
       try {
-        const url = `http://localhost:${service.port}/health`;
+        const url = `http://${BACKEND_IP}:${service.port}/health`;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000);
         
@@ -405,7 +408,7 @@ export default function App() {
   const handleQuickOverride = async (alert) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/ml/geocode?city=${encodeURIComponent(alert.city)}`);
+      const res = await fetch(`${ML_SERVICE_URL}/api/ml/geocode?city=${encodeURIComponent(alert.city)}`);
       if (res.ok) {
         const geoData = await res.json();
         if (geoData.success) {
@@ -465,8 +468,84 @@ export default function App() {
     (d.email && d.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const renderSidebar = (onClose = () => {}) => (
+    <div className="flex flex-col justify-between h-full">
+      <div>
+        <div className="px-1 pb-5 border-b border-white/5 mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <LogoSVG className="size-8 shrink-0" />
+            <div>
+              <span className="text-lg font-semibold text-white tracking-tight">
+                RideShield
+              </span>
+              <span className="text-[10px] text-primary-400 font-bold block tracking-widest leading-none uppercase mt-0.5">
+                Admin Terminal
+              </span>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            className="md:hidden text-slate-500 hover:text-white p-1 hover:bg-white/5 rounded-lg border border-white/5 cursor-pointer"
+          >
+            <FiXCircle className="size-5" />
+          </button>
+        </div>
+
+        <nav className="space-y-1">
+          {[
+            { id: 'analytics', label: 'Overview & Analytics', icon: FiGrid },
+            { id: 'claims', label: 'Claims Queue', icon: FiActivity, badge: analytics.pendingReviewsCount },
+            { id: 'overrides', label: 'Zone Overrides', icon: FiCompass },
+            { id: 'news', label: 'News Alerts Feed', icon: FiGlobe },
+            { id: 'drivers', label: 'Driver Policies', icon: FiUsers }
+          ].map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setSearchTerm('');
+                  onClose();
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all font-semibold group text-left border cursor-pointer ${
+                  isActive 
+                    ? "bg-primary-600/20 text-primary-400 border-primary-500/20"
+                    : "text-slate-500 hover:text-white hover:bg-white/5 border-transparent"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="size-4.5" />
+                  <span className="text-[13px]">{item.label}</span>
+                </div>
+                {item.badge > 0 && (
+                  <span className="bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded-full font-extrabold">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className="size-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300">
+            ZM
+          </div>
+          <div>
+            <p className="text-xs font-bold text-white">Zone Manager</p>
+            <p className="text-[10px] text-slate-500 font-medium">Operations Control</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-black text-slate-100 flex font-poppins relative overflow-hidden">
+    <div className="min-h-screen bg-black text-slate-100 flex flex-col md:flex-row font-poppins relative overflow-hidden">
       
       {/* Toast Alert */}
       <AnimatePresence>
@@ -487,85 +566,57 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Mobile Drawer Sidebar */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 z-40 md:hidden backdrop-blur-md"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed inset-y-0 left-0 z-50 w-64 bg-black border-r border-white/5 p-6 flex flex-col justify-between md:hidden"
+            >
+              {renderSidebar(() => setIsSidebarOpen(false))}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Decorative Glow Elements */}
       <div className="absolute top-[-10%] left-[-10%] size-[50vw] rounded-full bg-primary-950/15 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] size-[50vw] rounded-full bg-emerald-950/5 blur-[120px] pointer-events-none" />
 
-      {/* Sidebar Navigation */}
-      <aside className="w-64 bg-black border-r border-white/5 p-6 flex flex-col justify-between z-10 shrink-0">
-        <div>
-          {/* Logo Branding */}
-          <div className="px-1 pb-5 border-b border-white/5 mb-8">
-            <div className="flex items-center gap-3">
-              <LogoSVG className="size-8 shrink-0" />
-              <div>
-                <span className="text-lg font-semibold text-white tracking-tight">
-                  RideShield
-                </span>
-                <span className="text-[10px] text-primary-400 font-bold block tracking-widest leading-none uppercase mt-0.5">
-                  Admin Terminal
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Nav Items */}
-          <nav className="space-y-1">
-            {[
-              { id: 'analytics', label: 'Overview & Analytics', icon: FiGrid },
-              { id: 'claims', label: 'Claims Queue', icon: FiActivity, badge: analytics.pendingReviewsCount },
-              { id: 'overrides', label: 'Zone Overrides', icon: FiCompass },
-              { id: 'news', label: 'News Alerts Feed', icon: FiGlobe },
-              { id: 'drivers', label: 'Driver Policies', icon: FiUsers }
-            ].map(item => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setSearchTerm('');
-                  }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all font-semibold group text-left border ${
-                    isActive 
-                      ? "bg-primary-600/20 text-primary-400 border-primary-500/20"
-                      : "text-slate-500 hover:text-white hover:bg-white/5 border-transparent"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="size-4.5" />
-                    <span className="text-[13px]">{item.label}</span>
-                  </div>
-                  {item.badge > 0 && (
-                    <span className="bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded-full font-extrabold">
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* User Info / Status summary */}
-        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="size-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300">
-              ZM
-            </div>
-            <div>
-              <p className="text-xs font-bold text-white">Zone Manager</p>
-              <p className="text-[10px] text-slate-500 font-medium">Operations Control</p>
-            </div>
-          </div>
-        </div>
+      {/* Desktop Sidebar Navigation */}
+      <aside className="hidden md:flex w-64 bg-black border-r border-white/5 p-6 flex-col justify-between z-10 shrink-0">
+        {renderSidebar()}
       </aside>
 
       {/* Main Panel Area */}
-      <main className="flex-1 p-10 overflow-y-auto z-10 flex flex-col">
+      <main className="flex-grow p-4 sm:p-6 md:p-10 overflow-y-auto z-10 flex flex-col w-full min-w-0">
+        {/* Mobile Header Toolbar */}
+        <div className="flex md:hidden items-center justify-between pb-4 mb-6 border-b border-white/5 bg-transparent shrink-0">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="text-slate-400 hover:text-white p-2 hover:bg-white/5 rounded-xl border border-white/10 transition-all cursor-pointer"
+          >
+            <FiMenu className="size-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <LogoSVG className="size-6 text-primary-500" />
+            <span className="text-sm font-bold text-white tracking-tight">Admin Terminal</span>
+          </div>
+        </div>
+
         {/* Header */}
-        <header className="flex items-center justify-between mb-8">
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white m-0">
               {activeTab === 'analytics' && 'Operational Analytics'}
@@ -856,69 +907,90 @@ export default function App() {
                           const isPending = payout.status === 'REVIEW';
                           const isHighPriority = payout.priority === 'high';
                           
-                          // Structured reason parsing helper
                           const parseAuditReason = (reasonStr) => {
-                            if (!reasonStr) return { main: "", flags: [], isAudit: false, anomalyScore: null, metrics: null };
-                            
-                            // Check for structured review reason with metrics
-                            const auditMatch = reasonStr.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)\. Flagged for: (.*?)\. Metrics -> (.*?)\. Claim Details: (.*)$/);
-                            if (auditMatch) {
-                              const metricsStr = auditMatch[3];
-                              const gpsMatch = metricsStr.match(/GPS Match: (\d+)/)?.[1] || "";
-                              const motion = metricsStr.match(/Motion: ([0-9.]+)/)?.[1] || "";
-                              const loginGap = metricsStr.match(/Login Gap: (\d+m)/)?.[1] || "";
-                              const orders = metricsStr.match(/Orders: (\d+)/)?.[1] || "";
-                              const claims30d = metricsStr.match(/Claims 30d: (\d+)/)?.[1] || "";
-                              const neighbors = metricsStr.match(/Neighbors: (\d+)/)?.[1] || "";
-                              const cohort = metricsStr.match(/Cohort: (\d+)/)?.[1] || "";
-                              const fingerprint = metricsStr.match(/Fingerprint: ([0-9.]+)/)?.[1] || "";
+                             if (!reasonStr) return { main: "", flags: [], isAudit: false, anomalyScore: null, metrics: null };
+                             
+                             const auditMatch = reasonStr.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)\. Flagged for: (.*?)\. Metrics -> (.*?)\. Claim Details: (.*)$/);
+                             if (auditMatch) {
+                               const metricsStr = auditMatch[3];
+                               const gpsMatch = metricsStr.match(/GPS Match: (\d+)/)?.[1] || "";
+                               const motion = metricsStr.match(/Motion: ([0-9.]+)/)?.[1] || "";
+                               const loginGap = metricsStr.match(/Login Gap: (\d+m)/)?.[1] || "";
+                               const orders = metricsStr.match(/Orders: (\d+)/)?.[1] || "";
+                               const claims30d = metricsStr.match(/Claims 30d: (\d+)/)?.[1] || "";
+                               const neighbors = metricsStr.match(/Neighbors: (\d+)/)?.[1] || "";
+                               const cohort = metricsStr.match(/Cohort: (\d+)/)?.[1] || "";
+                               const fingerprint = metricsStr.match(/Fingerprint: ([0-9.]+)/)?.[1] || "";
+ 
+                               let mainText = auditMatch[4];
+                               if (mainText.includes(". Rejections:")) {
+                                 mainText = mainText.split(". Rejections:")[0].trim();
+                               }
+ 
+                               return {
+                                 isAudit: true,
+                                 anomalyScore: parseFloat(auditMatch[1]),
+                                 flags: auditMatch[2].split(" | ").map(f => f.trim()).filter(Boolean),
+                                 metrics: { gpsMatch, motion, loginGap, orders, claims30d, neighbors, cohort, fingerprint },
+                                 main: mainText
+                               };
+                             }
+ 
+                             const simpleAuditMatch = reasonStr.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)\. Flagged for: (.*?)\. Claim Details: (.*)$/);
+                             if (simpleAuditMatch) {
+                               let mainText = simpleAuditMatch[3];
+                               if (mainText.includes(". Rejections:")) {
+                                 mainText = mainText.split(". Rejections:")[0].trim();
+                               }
+                               return {
+                                 isAudit: true,
+                                 anomalyScore: parseFloat(simpleAuditMatch[1]),
+                                 flags: simpleAuditMatch[2].split(" | ").map(f => f.trim()).filter(Boolean),
+                                 metrics: null,
+                                 main: mainText
+                               };
+                             }
+ 
+                             const legacyMatch = reasonStr.match(/^Flagged: (.*?) \(Anomaly Score: ([0-9.]+)\)$/i);
+                             if (legacyMatch) {
+                               return {
+                                 isAudit: true,
+                                 anomalyScore: parseFloat(legacyMatch[2]),
+                                 flags: [legacyMatch[1].trim()],
+                                 metrics: null,
+                                 main: "Legacy Test Claim"
+                               };
+                             }
+ 
+                             const anyAnomalyMatch = reasonStr.match(/Anomaly Score: ([0-9.]+)/i);
+                             const anyScore = anyAnomalyMatch ? parseFloat(anyAnomalyMatch[1]) : null;
+                             
+                             let mainText = reasonStr;
+                             if (mainText.includes(". Rejections: ")) {
+                               mainText = mainText.split(". Rejections: ")[0].trim();
+                             } else if (mainText.includes("Rejections: ")) {
+                               mainText = mainText.split("Rejections: ")[0].trim();
+                             }
+                             
+                             if (mainText.endsWith(".")) {
+                               mainText = mainText.slice(0, -1).trim();
+                             }
 
-                              return {
-                                isAudit: true,
-                                anomalyScore: parseFloat(auditMatch[1]),
-                                flags: auditMatch[2].split(" | ").map(f => f.trim()).filter(Boolean),
-                                metrics: { gpsMatch, motion, loginGap, orders, claims30d, neighbors, cohort, fingerprint },
-                                main: auditMatch[4]
-                              };
-                            }
-
-                            // Fallback for simple structured review reason
-                            const simpleAuditMatch = reasonStr.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)\. Flagged for: (.*?)\. Claim Details: (.*)$/);
-                            if (simpleAuditMatch) {
-                              return {
-                                isAudit: true,
-                                anomalyScore: parseFloat(simpleAuditMatch[1]),
-                                flags: simpleAuditMatch[2].split(" | ").map(f => f.trim()).filter(Boolean),
-                                metrics: null,
-                                main: simpleAuditMatch[3]
-                              };
-                            }
-
-                            // Check for legacy/mock trigger format:
-                            // "Flagged: High Device Fingerprint Cluster Score (Anomaly Score: 0.42)"
-                            const legacyMatch = reasonStr.match(/^Flagged: (.*?) \(Anomaly Score: ([0-9.]+)\)$/i);
-                            if (legacyMatch) {
-                              return {
-                                isAudit: true,
-                                anomalyScore: parseFloat(legacyMatch[2]),
-                                flags: [legacyMatch[1].trim()],
-                                metrics: null,
-                                main: "Legacy Test Claim"
-                              };
-                            }
-
-                            // Check for standard anomaly score matches in the text
-                            const anyAnomalyMatch = reasonStr.match(/Anomaly Score: ([0-9.]+)/i);
-                            const anyScore = anyAnomalyMatch ? parseFloat(anyAnomalyMatch[1]) : null;
-                            
-                            return {
-                              isAudit: anyScore !== null,
-                              anomalyScore: anyScore,
-                              flags: [],
-                              metrics: null,
-                              main: reasonStr
-                            };
-                          };
+                             if (mainText.includes(" (Shift:")) {
+                               mainText = mainText.split(" (Shift:")[0].trim();
+                             }
+                             if (mainText.includes(" (Capped")) {
+                               mainText = mainText.split(" (Capped")[0].trim();
+                             }
+                             
+                             return {
+                               isAudit: anyScore !== null,
+                               anomalyScore: anyScore,
+                               flags: [],
+                               metrics: null,
+                               main: mainText
+                             };
+                           };
 
                           const parsed = parseAuditReason(payout.reason);
                           const anomalyScore = parsed.anomalyScore;

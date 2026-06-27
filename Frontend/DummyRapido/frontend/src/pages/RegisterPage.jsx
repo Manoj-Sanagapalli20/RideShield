@@ -14,7 +14,8 @@ const RegisterPage = () => {
         const data = Object.fromEntries(formData.entries());
 
         try {
-            const response = await fetch('http://localhost:5000/api/partners/register', {
+            const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || 'localhost';
+            const response = await fetch(`http://${BACKEND_IP}:5000/api/partners/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -54,7 +55,7 @@ const RegisterPage = () => {
                         {/* Name */}
                         <div className="space-y-1">
                             <label className="text-xs font-black text-gray-400 uppercase tracking-widest pl-1">Full Name</label>
-                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 focus-within:bride-yellow-500 transition-all">
+                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 focus-within:border-yellow-500 transition-all">
                                 <FaUser className="text-gray-400 mr-3 shrink-0" />
                                 <input name="name" type="text" placeholder="Enter your full name" className="bg-transparent border-none outline-none w-full text-gray-700 font-bold" required />
                             </div>

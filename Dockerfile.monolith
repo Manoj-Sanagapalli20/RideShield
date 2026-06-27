@@ -42,10 +42,10 @@ RUN cd Frontend/DummyRapido/frontend && npm ci && npm run build
 EXPOSE 3000 3001 5000 5001 5002 5003 5004 5005 3004 8000
 
 # Use process environment variables, but override networking to localhost instead of Docker networking
-# so the internal PM2 processes can talk to each other
 ENV DUMMYRAPIDO_URL="http://localhost:5000"
 ENV PAYMENT_SERVICE_URL="http://localhost:5003"
 ENV ML_SERVICE_URL="http://localhost:8000"
+ENV NODE_ENV=production
 
-# PM2 command to start all services and keep container alive
-CMD ["pm2-runtime", "start", "ecosystem.config.js"]
+# Start backends using our custom start script (skips frontends in prod)
+CMD ["node", "start.js"]

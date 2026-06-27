@@ -28,7 +28,8 @@ export default function LoginPage() {
         setError("");
 
         try {
-            const response = await fetch("http://localhost:5001/auth/login", {
+            const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || "localhost";
+            const response = await fetch(`http://${BACKEND_IP}:5001/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ partnerId: rapidoId }),

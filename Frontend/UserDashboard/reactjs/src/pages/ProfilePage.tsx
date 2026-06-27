@@ -15,7 +15,8 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (!partnerId) { navigate("/"); return; }
-        fetch(`http://localhost:5002/api/policy/profile/${partnerId}`)
+        const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || "localhost";
+        fetch(`http://${BACKEND_IP}:5002/api/policy/profile/${partnerId}`)
             .then(r => r.ok ? r.json() : null)
             .then(data => setProfile(data?.partner || null))
             .catch(console.error)

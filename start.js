@@ -72,9 +72,20 @@ const services = [
 
 const children = [];
 
-console.log("🚀 Starting all RideShield services in dev mode...");
+const args = process.argv.slice(2);
+const isProd = args.includes("--prod") || process.env.NODE_ENV === "production";
 
-services.forEach((service) => {
+if (isProd) {
+  console.log("🚀 Starting RideShield backend services in production mode (skipping frontends)...");
+} else {
+  console.log("🚀 Starting all RideShield services in dev mode...");
+}
+
+const activeServices = isProd
+  ? services.filter((s) => s.name !== "user-dashboard" && s.name !== "dummyrapido-frontend" && s.name !== "admin-dashboard")
+  : services;
+
+activeServices.forEach((service) => {
   const absoluteCwd = path.resolve(__dirname, service.cwd);
   
   const child = spawn(service.command, service.args, {

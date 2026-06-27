@@ -83,6 +83,8 @@ const DashboardPage = () => {
         navigate('/');
     };
 
+    const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || 'localhost';
+
     const handleSaveData = async () => {
         const dataToSave = {
             partnerId: partner?._id,
@@ -93,7 +95,7 @@ const DashboardPage = () => {
         };
         
         try {
-            const response = await fetch('http://localhost:5000/api/partners/save-log', {
+            const response = await fetch(`http://${BACKEND_IP}:5000/api/partners/save-log`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dataToSave)
@@ -114,31 +116,31 @@ const DashboardPage = () => {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             {/* Dashboard Header */}
-            <header className="bg-white bride-b border-gray-100 px-6 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-                <div className="flex items-center gap-3">
-                    <span className="text-2xl font-black italic text-yellow-500 tracking-tighter">rapido</span>
-                    <div className="hidden sm:flex flex-col bride-l border-gray-200 pl-3">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-1">Partner Portal</span>
-                        <span className="text-xs font-bold text-gray-900 leading-none">ID: {partner?.partnerId || '00000'}</span>
+            <header className="bg-white border-b border-gray-100 px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="text-2xl font-black italic text-yellow-500 tracking-tighter shrink-0">rapido</span>
+                    <div className="flex flex-col border-l border-gray-200 pl-2 sm:pl-3">
+                        <span className="text-[8px] sm:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em] sm:tracking-[0.2em] leading-none mb-1">Partner Portal</span>
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-900 leading-none font-mono">ID: {partner?.partnerId || '00000'}</span>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2 sm:gap-6">
                     <button 
                         onClick={handleSaveData}
-                        className="hidden md:flex items-center gap-2 bg-yellow-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-200 active:scale-95"
+                        className="flex items-center gap-1.5 sm:gap-2 bg-yellow-500 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-200 active:scale-95 shrink-0"
                     >
-                        Sync Activity
+                        Sync <span className="hidden sm:inline">Activity</span>
                     </button>
-                    <div className="hidden md:flex flex-col items-end">
-                        <span className="text-sm font-black text-gray-900">{partner?.name || 'Partner'}</span>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${stats.currentStatus === 'Online' ? 'text-green-500' : 'text-gray-400'}`}>
+                    <div className="flex flex-col items-end shrink-0">
+                        <span className="text-xs sm:text-sm font-black text-gray-900 leading-none mb-0.5">{partner?.name || 'Partner'}</span>
+                        <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-wider sm:tracking-widest leading-none ${stats.currentStatus === 'Online' ? 'text-green-500' : 'text-gray-400'}`}>
                            ● {stats.currentStatus}
                         </span>
                     </div>
                     <button 
                         onClick={handleLogout}
-                        className="p-3 rounded-full bg-gray-50 text-gray-500 hover:text-yellow-500 hover:bg-yellow-50 transition-all border border-gray-200 shadow-sm"
+                        className="p-2 sm:p-3 rounded-full bg-gray-50 text-gray-500 hover:text-yellow-500 hover:bg-yellow-50 transition-all border border-gray-200 shadow-sm text-sm sm:text-base shrink-0"
                     >
                         <FaSignOutAlt />
                     </button>
@@ -149,7 +151,7 @@ const DashboardPage = () => {
                 {/* Stats Summary Section */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-left">
                     <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-100 border border-gray-100 flex items-center gap-5">
-                        <div className="size-16 rounded-2xl bg-yellow-50 flex items-center justify-center text-yellow-500 text-3xl shrink-0 border bride-yellow-100 transition hover:rotate-6">
+                        <div className="size-16 rounded-2xl bg-yellow-50 flex items-center justify-center text-yellow-500 text-3xl shrink-0 border border-yellow-100 transition hover:rotate-6">
                             <FaMotorcycle />
                         </div>
                         <div>
@@ -159,7 +161,7 @@ const DashboardPage = () => {
                     </div>
 
                     <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-100 border border-gray-100 flex items-center gap-5">
-                        <div className="size-16 rounded-2xl bg-green-50 flex items-center justify-center text-green-500 text-3xl shrink-0 border bride-green-100 transition hover:rotate-6">
+                        <div className="size-16 rounded-2xl bg-green-50 flex items-center justify-center text-green-500 text-3xl shrink-0 border border-green-100 transition hover:rotate-6">
                             <FaWallet />
                         </div>
                         <div>
@@ -169,7 +171,7 @@ const DashboardPage = () => {
                     </div>
 
                     <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-100 border border-gray-100 flex items-center gap-5">
-                        <div className={`size-16 rounded-2xl ${stats.currentStatus === 'Online' ? 'bg-blue-50 text-blue-500 bride-blue-100' : 'bg-gray-50 text-gray-400 border-gray-100'} flex items-center justify-center text-3xl shrink-0 border transition hover:rotate-6`}>
+                        <div className={`size-16 rounded-2xl ${stats.currentStatus === 'Online' ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-gray-50 text-gray-400 border-gray-100'} flex items-center justify-center text-3xl shrink-0 border transition hover:rotate-6`}>
                             <FaCheckCircle />
                         </div>
                         <div>
@@ -183,7 +185,7 @@ const DashboardPage = () => {
 
                 {/* Hourly Log Section */}
                 <div className="bg-white rounded-[32px] shadow-2xl shadow-gray-200 border border-gray-100 overflow-hidden mb-12">
-                    <div className="px-8 py-6 bride-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
+                    <div className="px-4 md:px-8 py-6 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50">
                         <div>
                             <h3 className="text-xl font-black text-gray-900 tracking-tight">Activity Customizer</h3>
                             <label className="text-[10px] uppercase font-black tracking-widest text-gray-400">Simulation Date:</label>
@@ -191,35 +193,35 @@ const DashboardPage = () => {
                                 type="date" 
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="ml-2 bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm font-bold text-gray-700 outline-none focus:bride-yellow-500"
+                                className="ml-2 bg-white border border-gray-200 rounded-lg px-3 py-1 text-sm font-bold text-gray-700 outline-none focus:border-yellow-500"
                             />
                         </div>
-                        <p className="text-[11px] font-bold text-yellow-500 bg-yellow-50 px-4 py-2 rounded-full border bride-yellow-100">Click Status or Use +/- to Modify Data</p>
+                        <p className="text-[11px] font-bold text-yellow-500 bg-yellow-50 px-4 py-2 rounded-full border border-yellow-100 font-semibold">Click Status or Use +/- to Modify Data</p>
                     </div>
                     
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left">
+                        <table className="w-full text-left min-w-[550px]">
                             <thead className="bg-white text-[11px] font-black tracking-[0.1em] text-gray-400 uppercase">
                                 <tr>
-                                    <th className="px-8 py-5 bride-b border-gray-100">Time Slot</th>
-                                    <th className="px-8 py-5 bride-b border-gray-100">Toggle Status</th>
-                                    <th className="px-8 py-5 bride-b border-gray-100 text-center">Adjust Rides</th>
-                                    <th className="px-8 py-5 bride-b border-gray-100">Hourly Income</th>
+                                    <th className="px-3 md:px-8 py-4 md:py-5 border-b border-gray-100">Time Slot</th>
+                                    <th className="px-3 md:px-8 py-4 md:py-5 border-b border-gray-100">Toggle Status</th>
+                                    <th className="px-3 md:px-8 py-4 md:py-5 border-b border-gray-100 text-center">Adjust Rides</th>
+                                    <th className="px-3 md:px-8 py-4 md:py-5 border-b border-gray-100">Hourly Income</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {hourlyData.map((row, index) => (
                                     <tr key={index} className="hover:bg-yellow-50/20 transition-colors group">
-                                        <td className="px-8 py-5 font-bold text-gray-700">{row.timeSlot}</td>
-                                        <td className="px-8 py-5">
+                                        <td className="px-3 md:px-8 py-4 md:py-5 font-bold text-gray-700 whitespace-nowrap">{row.timeSlot}</td>
+                                        <td className="px-3 md:px-8 py-4 md:py-5">
                                             <button 
                                                 onClick={() => toggleStatus(index)}
-                                                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all active:scale-95 ${row.isOnline ? 'bg-green-50 text-green-600 bride-green-100 hover:bg-green-100' : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200'}`}
+                                                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all active:scale-95 ${row.isOnline ? 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100' : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'}`}
                                             >
                                                 {row.isOnline ? 'Online' : 'Offline'}
                                             </button>
                                         </td>
-                                        <td className="px-8 py-5">
+                                        <td className="px-3 md:px-8 py-4 md:py-5">
                                             <div className="flex items-center justify-center gap-4">
                                                 <button 
                                                     onClick={() => updateRides(index, -1)}
@@ -242,7 +244,7 @@ const DashboardPage = () => {
                                                 </button>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-5">
+                                        <td className="px-3 md:px-8 py-4 md:py-5 whitespace-nowrap">
                                             <span className={`text-base font-black ${row.earnings > 0 ? 'text-yellow-500' : 'text-gray-300'}`}>
                                                 ₹{row.earnings}
                                             </span>

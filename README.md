@@ -148,33 +148,31 @@ RideShield has two distinct flows running in parallel — a one-time **plan purc
 #### Step 3 — Zone Registration Service (Once at Login)
 - When the worker opens RideShield and goes online for the day, the app captures their GPS location **once** via Browser Geolocation API.
 - OpenStreetMap Nominatim resolves the coordinates to a pincode and zone name.
-- This zone is stored in Redis under the worker's daily key (TTL 24 hours).
-- That single pincode is used for **all disruption lookups for the entire day** — no further GPS tracking needed.
-
-Why only once? Rapido assigns delivery orders within a 15 km radius of the worker's login location. The worker's zone doesn't change during the day — so one capture is enough to know which zone's weather data applies to them.
+- This location is cached in Redis under the key `worker:{userId}:location` with a **TTL of 30 days**.
+- Storing the coordinates with a 30-day TTL provides a reliable "last known location" fallback for daily claims processing if the driver does not log into the RideShield client daily, while automatically updating whenever the driver opens the app.
 
 ```
 Worker goes online in RideShield
         ↓
-Single GPS capture → Nominatim resolves to pincode + zone
+Single GPS capture → Nominatim resolves coordinates
         ↓
-Redis: worker:wk_abc123:zone → "520001" (TTL 24hr)
+Redis: worker:{userId}:location → cached lat/lng (TTL 30 days)
         ↓
 One event pushed to RabbitMQ direct queue [location.update]
         ↓
-ML service uses this pincode all day for disruption lookups
+ML service uses coordinates for disruption lookups
 ```
 
 - Admin Dashboard can also push manual strike/curfew confirmations into the same queue.
 
 #### Step 4 — ML Service Builds the Day's Disruption Array
-The ML Service picks up each location event and builds a full-day disruption picture for the worker's zone:
+The ML Service picks up each location event and builds a full-day disruption picture for the worker's coordinate zone:
 
-1. **Redis cache check first** — look up zone disruption data for today's date + pin code.
+1. **Redis cache check first** — look up zone disruption data for today's date + coordinates key (`disruptions:{date}:{lat}_{lng}`).
    - **Cache hit** → return cached disruption array immediately (no API call).
    - **Cache miss** → call external APIs (Open-Meteo, WAQI, NewsAPI), fetch data, store result in Redis (TTL 30 min).
 
-2. **Location radius match** — if another worker in the same zone (within 2–3 km) already has a cached result, reuse it. No duplicate API calls.
+2. **Location radius match** — if another worker within 2–3 km already has a cached result, reuse it. This prevents duplicate API calls.
 
 3. **Disruption array stored per calendar date per zone:**
 ```json
@@ -460,11 +458,11 @@ A parametric trigger is a measurable, verifiable real-world condition that autom
 ### Edge Case 6 — Weather API Cost & Performance
 **Problem:** With 10,000+ workers, calling the weather API per worker per request is expensive and slow.
 
-**Solution — Zone-Level Redis Caching:**
-- Weather data is fetched once per pin code every 30 minutes.
-- Stored in Redis: key = `weather:pincode:522001`, TTL = 1800 seconds.
-- All workers in the same pin code share one cached reading.
-- 10,000 workers across 50 pin codes = only 50 API calls per 30 minutes, not 10,000.
+**Solution — Coordinate-Level Redis Caching with Radius Matching:**
+- Weather data is fetched once per coordinate cell and cached for 30 minutes.
+- Stored in Redis: key = `disruptions:{date}:{lat}_{lng}`, TTL = 1800 seconds (30 minutes) to maintain near real-time accuracy since weather changes dynamically during the day.
+- A radius lookup allows workers within a 2-3 km range of a cached location to reuse the active result.
+- This maintains real-time accuracy for parametric claims while preventing duplicate weather API calls for nearby drivers.
 
 ---
 
@@ -681,6 +679,12 @@ To provide explainability for the ML decision, individual metrics are classified
 > **Context — The Market Crash Scenario:**
 > A coordinated syndicate of 500 delivery workers used GPS spoofing apps to fake their locations inside a severe weather zone, triggering mass false payouts and draining a platform's liquidity pool. Simple GPS verification is no longer enough. This section describes how RideShield's architecture detects and stops this — at the individual level and at the ring level.
 
+> [!NOTE]
+> **Prototype Telemetry Simulation & Future Production Roadmap:**
+> For the purposes of this PWA (Progressive Web App) prototype, raw physical/hardware telemetry inputs (including `accelerometer_motion_during_claim`, `gps_zone_vs_cell_tower_zone_match`, `neighbor_claims_same_window`, `registration_cohort_size`, and `device_fingerprint_cluster_score`) are defaulted/simulated with safe baseline values in the backend (`MainService/index.js`).
+>
+> In a commercial production environment, these parameters will be captured perfectly by shifting from a web PWA to a **native Android wrapper application** (as outlined in the [Platform Choice — Web (PWA)](#platform-choice--web-pwa) section). This allows direct access to native Android SDK APIs (e.g., using `SensorManager` to read raw accelerometer movement, `TelephonyManager` for cell tower triangulation regions, and standard hardware ID APIs to compute cryptographic device fingerprints).
+
 ---
 
 ### 1. The Differentiation — Genuine Worker vs GPS Spoofer
@@ -833,22 +837,22 @@ Notification Service (plan confirmed SMS)
 ### Flow B — Automated Claim
 
 ```
-At login (once per day):
-Zone Registration Service (single GPS capture)
+At login:
+Zone Registration Service (GPS capture)
         ↓
-Nominatim resolves GPS → pincode + zone name
+Nominatim resolves GPS → address info
         ↓
-Redis: worker:wk_abc123:zone → "520001" (TTL 24hr)
+Redis: worker:{userId}:location → cached coordinates (TTL 30 days fallback)
         ↓
 One event pushed to RabbitMQ direct queue [location.update]
   ← Admin Dashboard also feeds here (manual strike confirm)
         ↓
 ML Service consumes:
-  1. Check Redis cache for zone disruption data (date + pincode key)
-     ├── Cache hit  → return cached disruption array
+  1. Check Redis cache for zone disruption data (date + coordinate key)
+     ├── Cache hit  → return cached disruption array (`disruptions:{date}:{lat}_{lng}`)
      └── Cache miss → call Open-Meteo / WAQI / NewsAPI
                       → split midnight-crossing rain at day boundary
-                      → store under date key in Redis (TTL 30 min)
+                      → store under date + lat_lng key in Redis (TTL 30 min)
                       → location radius match (2–3 km)
   2. Random Forest → zone risk score
   3. Stores: { date, zone, disruptions: [{time, type, level}] }
@@ -896,8 +900,8 @@ If eligible → publish to RabbitMQ pub/sub fanout [claim.eligible]
 
 | Redis Instance | Role | Keys & TTL |
 |---|---|---|
-| Redis (cache) | Worker zone (once per day), disruption data by date, sessions | `worker:wk_abc123:zone` TTL 24hr · `disruptions:2026-03-18:522001` TTL 24hr · sessions TTL 24hr |
-| Redis (job queue) | Daily cron job (6 AM) + weather polling cron (30 min) | Bull job queue |
+| Redis (cache) | Worker last known location (fallback), disruption forecasts, and sessions | `worker:{userId}:location` TTL 30 days · `disruptions:{date}:{lat}_{lng}` TTL 30 min · sessions TTL 24hr |
+| Redis (job queue) | Daily cron job (6 AM) + repeatable weather triggers | Bull job queue |
 
 ---
 

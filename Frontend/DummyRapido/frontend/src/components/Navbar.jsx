@@ -25,10 +25,15 @@ const Navbar = () => {
                         </Link>
                     </div>
 
-                    {/* Mobile Menu Button */}
-                    <button className="md:hidden text-2xl text-gray-700" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                        {isMenuOpen ? <HiX /> : <HiMenu />}
-                    </button>
+                    {/* Mobile Actions & Menu Button */}
+                    <div className="flex items-center gap-3 md:hidden">
+                        <Link to="/login" className="bg-yellow-400 text-gray-900 px-4 py-2 rounded-lg font-black text-xs hover:bg-yellow-300 transition-all shadow-md shadow-yellow-400/10 active:scale-95 border border-yellow-300/50">
+                            Register
+                        </Link>
+                        <button className="text-2xl text-gray-700 p-1" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                            {isMenuOpen ? <HiX /> : <HiMenu />}
+                        </button>
+                    </div>
                 </div>
             </div>
 

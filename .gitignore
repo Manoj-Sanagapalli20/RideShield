@@ -56,3 +56,6 @@ venv/
 .venv/
 env/
 ENV/
+
+# Student Guide 
+RideShield_Student_Guide.md

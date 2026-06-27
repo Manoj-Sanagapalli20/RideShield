@@ -77,6 +77,7 @@ def reverse_geocode_coords(lat: float, lng: float) -> dict:
 def get_zone_name(lat: float, lng: float, fallback_pincode: str):
     """
     Resolves zone/city name using OSM Nominatim API via the cached wrapper.
+    Prioritizes fallback_pincode if it is a valid postcode to respect driver location simulation overrides.
     """
     geo = reverse_geocode_coords(lat, lng)
     place = (
@@ -85,5 +86,5 @@ def get_zone_name(lat: float, lng: float, fallback_pincode: str):
         geo.get("country") or
         "Unknown"
     )
-    postcode = geo.get("pincode") or fallback_pincode
+    postcode = fallback_pincode if (fallback_pincode and str(fallback_pincode).strip() not in ("", "000000")) else (geo.get("pincode") or "000000")
     return f"{place}-{postcode}"

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { FiGrid, FiFileText, FiClock, FiLogOut, FiUser, FiMenu } from "react-icons/fi";
+import { FiGrid, FiFileText, FiClock, FiLogOut, FiUser, FiMenu, FiX } from "react-icons/fi";
 import { Logo } from "./Logo";
 
 
@@ -19,7 +19,7 @@ interface AppShellProps {
 }
 
 export default function AppShell({ children, title, subtitle }: AppShellProps) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -30,35 +30,7 @@ export default function AppShell({ children, title, subtitle }: AppShellProps) {
     };
 
     return (
-        <div className="flex h-[100dvh] bg-black overflow-hidden font-poppins">
-            {/* Mobile Overlay */}
-            <AnimatePresence>
-                {isSidebarOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/70 z-40 lg:hidden backdrop-blur-xl"
-                        onClick={() => setIsSidebarOpen(false)}
-                    />
-                )}
-            </AnimatePresence>
-
-            {/* Mobile Sidebar */}
-            <AnimatePresence>
-                {isSidebarOpen && (
-                    <motion.aside
-                        initial={{ x: -280 }}
-                        animate={{ x: 0 }}
-                        exit={{ x: -280 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        className="fixed inset-y-0 left-0 z-50 w-64 bg-black/95 backdrop-blur-xl border-r border-white/5 flex flex-col justify-between lg:hidden"
-                    >
-                        <SidebarInner navLinks={navLinks} location={location} onClose={() => setIsSidebarOpen(false)} onLogout={handleLogout} />
-                    </motion.aside>
-                )}
-            </AnimatePresence>
-
+        <div className="flex h-[100dvh] bg-black overflow-hidden font-poppins relative">
             {/* Desktop Sidebar */}
             <aside className="hidden lg:flex w-56 bg-black border-r border-white/5 flex-col justify-between shrink-0">
                 <SidebarInner navLinks={navLinks} location={location} onClose={() => {}} onLogout={handleLogout} />
@@ -69,9 +41,6 @@ export default function AppShell({ children, title, subtitle }: AppShellProps) {
                 {/* Header */}
                 <header className="h-16 bg-black/90 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4 md:px-6 shrink-0">
                     <div className="flex items-center gap-3">
-                        <button className="lg:hidden text-white/50 hover:text-white p-2 hover:bg-white/5 rounded-xl transition-colors border border-white/5" onClick={() => setIsSidebarOpen(true)}>
-                            <FiMenu className="size-5" />
-                        </button>
                         <div>
                             <h1 className="text-base font-semibold text-white tracking-tight">{title}</h1>
                             {subtitle && <p className="text-[13px] text-slate-500">{subtitle}</p>}
@@ -84,10 +53,92 @@ export default function AppShell({ children, title, subtitle }: AppShellProps) {
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto">
+                {/* Main Scroll Content */}
+                <div className="flex-1 overflow-y-auto pb-10 lg:pb-0">
                     {children}
                 </div>
             </main>
+
+            {/* Floating Shield Action Button (FAB) for Mobile/Tablet */}
+            <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className={`fixed bottom-6 right-6 z-50 size-14 rounded-full flex items-center justify-center shadow-2xl transition-colors border lg:hidden ${
+                    isMenuOpen 
+                        ? "bg-[#1c1c1e] border-white/10 text-white" 
+                        : "bg-[#0d0d0f] border-primary-500/40 text-primary-400 shadow-primary-500/10"
+                }`}
+            >
+                {isMenuOpen ? (
+                    <FiX className="size-5" />
+                ) : (
+                    <motion.div
+                        animate={{ scale: [1, 1.08, 1] }}
+                        transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                    >
+                        <Logo className="size-9" />
+                    </motion.div>
+                )}
+            </motion.button>
+
+            {/* Floating Radial Menu Overlay */}
+            <AnimatePresence>
+                {isMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/85 backdrop-blur-2xl z-40 lg:hidden flex flex-col justify-center items-center"
+                        onClick={() => setIsMenuOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ y: 40, scale: 0.95, opacity: 0 }}
+                            animate={{ y: 0, scale: 1, opacity: 1 }}
+                            exit={{ y: 40, scale: 0.95, opacity: 0 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="w-[90%] max-w-sm flex flex-col gap-6 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <span className="text-[10px] text-primary-500 uppercase tracking-widest font-black">Menu Navigation</span>
+                            <div className="grid grid-cols-2 gap-3.5">
+                                {navLinks.map((link: any, idx: number) => {
+                                    const isActive = location.pathname === link.to;
+                                    return (
+                                        <Link
+                                            key={idx}
+                                            to={link.to}
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className={`flex flex-col items-center justify-center p-5 rounded-2xl border transition-all text-center group ${
+                                                isActive
+                                                    ? "bg-primary-600/20 border-primary-500/30 text-primary-400"
+                                                    : "bg-white/[0.02] border-white/5 text-slate-400 hover:bg-white/5 hover:border-white/10 hover:text-white"
+                                            }`}
+                                        >
+                                            <div className={`size-9 rounded-xl flex items-center justify-center border mb-3 transition-colors ${
+                                                isActive ? "bg-primary-500/10 border-primary-500/30 text-primary-400" : "bg-white/5 border-white/5 text-slate-400 group-hover:text-white group-hover:border-white/10"
+                                            }`}>
+                                                {link.icon}
+                                            </div>
+                                            <span className="text-sm font-bold tracking-tight">{link.label}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    setIsMenuOpen(false);
+                                    handleLogout();
+                                }}
+                                className="w-full py-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all font-bold text-sm flex items-center justify-center gap-2"
+                            >
+                                <FiLogOut /> Log Out of Portal
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

@@ -330,14 +330,17 @@ app.post('/api/policy/cron/inactivity-check', async (req, res) => {
 
     // 1. Get all active users
     const usersRes = await axios.get(`${paymentServiceUrl}/api/payments/active-users`);
-    const { userIds } = usersRes.data;
+    const { userIds, activeDrivers } = usersRes.data;
 
-    if (!userIds || userIds.length === 0) {
+    const driversToCheck = activeDrivers || (userIds || []).map(id => ({ userId: id, createdAt: new Date() }));
+
+    if (driversToCheck.length === 0) {
       return res.status(200).json({ message: "No active users to check for inactivity." });
     }
 
-    console.log(`[PolicyService] Running inactivity checks on ${userIds.length} users...`);
+    console.log(`[PolicyService] Running inactivity checks on ${driversToCheck.length} users...`);
     const pausedUsers = [];
+    let skippedNewPoliciesCount = 0;
 
     // Helper to get past dates list
     const getPast14Dates = () => {
@@ -352,7 +355,18 @@ app.post('/api/policy/cron/inactivity-check', async (req, res) => {
     };
     const pastDates = getPast14Dates();
 
-    for (const userId of userIds) {
+    for (const driver of driversToCheck) {
+      const { userId, createdAt } = driver;
+
+      // Skip checking policies that are less than 14 days old
+      const policyAgeMs = Date.now() - new Date(createdAt).getTime();
+      const policyAgeDays = policyAgeMs / (1000 * 60 * 60 * 24);
+      if (policyAgeDays < 14) {
+        console.log(`[PolicyService] Skipping inactivity check for user ${userId} — policy is only ${policyAgeDays.toFixed(1)} days old.`);
+        skippedNewPoliciesCount++;
+        continue;
+      }
+
       let totalLogins = 0;
 
       // Check logins for past 14 days
@@ -386,7 +400,7 @@ app.post('/api/policy/cron/inactivity-check', async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Checked ${userIds.length} users for inactivity. Paused ${pausedUsers.length} inactive policies.`,
+      message: `Checked ${driversToCheck.length} users (skipped ${skippedNewPoliciesCount} new policies). Paused ${pausedUsers.length} inactive policies.`,
       pausedUsers
     });
 

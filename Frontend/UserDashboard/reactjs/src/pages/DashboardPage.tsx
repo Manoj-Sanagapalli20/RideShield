@@ -7,9 +7,10 @@ import {
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 
-const PAYMENT_SERVICE = "http://localhost:5003";
-const POLICY_SERVICE = "http://localhost:5002";
-const ML_SERVICE = "http://localhost:8000";
+const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || "localhost";
+const PAYMENT_SERVICE = `http://${BACKEND_IP}:5003`;
+const POLICY_SERVICE = `http://${BACKEND_IP}:5002`;
+const ML_SERVICE = `http://${BACKEND_IP}:8000`;
 
 interface Payout {
     _id: string;
@@ -98,17 +99,34 @@ const getApprovedReasonOnly = (reason: string) => {
     if (!reason) return "";
     
     const scoreMatch = reason.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)/);
-    const detailsPart = getDisruptionDetails(reason).split('. Rejections: ')[0];
+    let detailsPart = getDisruptionDetails(reason);
+    
+    if (detailsPart.includes(". Rejections: ")) {
+        detailsPart = detailsPart.split(". Rejections: ")[0].trim();
+    } else if (detailsPart.includes("Rejections: ")) {
+        detailsPart = detailsPart.split("Rejections: ")[0].trim();
+    }
+    
+    if (detailsPart.endsWith(".")) {
+        detailsPart = detailsPart.slice(0, -1).trim();
+    }
+    
+    const shiftIndex = detailsPart.indexOf(" (Shift:");
+    if (shiftIndex !== -1) {
+        detailsPart = detailsPart.substring(0, shiftIndex).trim();
+    }
+    const cappedIndex = detailsPart.indexOf(" (Capped");
+    if (cappedIndex !== -1) {
+        detailsPart = detailsPart.substring(0, cappedIndex).trim();
+    }
     
     if (scoreMatch) {
         return `Pending Audit (Anomaly Score: ${scoreMatch[1]}) - ${detailsPart}`;
     }
     
-    if (reason.startsWith("Rejected:")) {
-        return reason;
-    }
     return detailsPart;
 };
+
 
 const isRealDisruption = (reason: string) => {
     if (!reason) return false;
@@ -240,7 +258,7 @@ export default function DashboardPage() {
     };
 
     const pushLocation = (lat: number, lng: number, dateStr?: string, pc?: string) => {
-        fetch("http://localhost:5004/api/address/update", {
+        fetch(`http://${BACKEND_IP}:5004/api/address/update`, {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId, lat, lng, date: dateStr, pincode: pc, data: { email: user?.email } })
         }).catch(console.error);
@@ -286,7 +304,7 @@ export default function DashboardPage() {
 
                 if (lat === null || lon === null) {
                     setAnalysisStage(`Searching coordinates for ${city}...`);
-                    const res = await fetch(`http://localhost:8000/api/ml/geocode?city=${encodeURIComponent(city)}`);
+                    const res = await fetch(`${ML_SERVICE}/api/ml/geocode?city=${encodeURIComponent(city)}`);
                     const d = await res.json();
                     if (d && d.success) {
                         lat = d.lat;
@@ -364,7 +382,7 @@ export default function DashboardPage() {
                 setAnalysisStage("Resolving live GPS location coordinates...");
 
                 try {
-                    const geoRes = await fetch(`http://localhost:8000/api/ml/reverse?lat=${lat}&lng=${lon}`);
+                    const geoRes = await fetch(`${ML_SERVICE}/api/ml/reverse?lat=${lat}&lng=${lon}`);
                     const geoData = await geoRes.json();
                     if (geoData && geoData.success) {
                         const cityVal = geoData.city;
@@ -830,12 +848,33 @@ export default function DashboardPage() {
                                             <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                                                 <div className={`h-full ${isFraud ? "bg-red-500 w-[100%]" : "bg-slate-700 w-0"}`} />
                                             </div>
-                                            {isFraud ? (
-                                                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 font-medium flex items-center gap-2">
-                                                    <FiAlertTriangle className="size-3.5 shrink-0" />
-                                                    Blocked: {activePayout.reason.replace("Rejected: ", "")}
-                                                </div>
-                                            ) : !isRealDisruption(activePayout.reason) ? (
+                                            {isFraud ? (() => {
+                                                const { mainReason, details } = formatRejectionReason(activePayout.reason);
+                                                return (
+                                                    <div className="w-full p-3.5 rounded-xl bg-red-500/5 border border-red-500/20 text-xs text-red-400 font-medium flex flex-col gap-2.5">
+                                                        <div className="flex items-start gap-2.5">
+                                                            <FiAlertTriangle className="size-4 text-red-400 mt-0.5 shrink-0" />
+                                                            <div>
+                                                                <span className="font-bold text-red-300 block mb-0.5">Blocked by Risk Engine</span>
+                                                                <span className="text-red-400/90 leading-relaxed">{mainReason}</span>
+                                                            </div>
+                                                        </div>
+                                                        {details.length > 0 && (
+                                                            <div className="pt-2.5 border-t border-red-500/10">
+                                                                <span className="text-[10px] text-red-500/50 uppercase tracking-wider font-bold block mb-2">Hourly Details</span>
+                                                                <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-white/10">
+                                                                    {details.map((d, idx) => (
+                                                                        <div key={idx} className="flex items-start gap-2 text-[11px] text-red-500/80 bg-red-500/5 p-2 rounded border border-red-500/10 leading-normal">
+                                                                            <span className="inline-block size-1 rounded-full bg-red-500/50 mt-1.5 shrink-0" />
+                                                                            <span>{d}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })() : !isRealDisruption(activePayout.reason) ? (
                                                 <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium flex items-center gap-2">
                                                     <FiCheckCircle className="size-3.5 shrink-0" />
                                                     Parametric Monitoring Active. Safe Hours.
@@ -1139,15 +1178,15 @@ export default function DashboardPage() {
                                                 onClick={() => setSelectedPayout(p)}
                                                 className="flex items-center justify-between px-4 py-2.5 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 hover:border-white/10 transition-all group cursor-pointer"
                                             >
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-3 min-w-0 flex-1">
                                                     <div className={`size-8 rounded-lg flex items-center justify-center shrink-0 border ${
                                                         isRejected ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                                                     }`}>
                                                         {isRejected ? <FiX className="size-3.5" /> : <FiCloudRain className="size-3.5" />}
                                                     </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <p className="text-xs font-bold text-white leading-tight">{getApprovedReasonOnly(p.reason)}</p>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                                            <p className="text-xs font-bold text-white leading-tight break-words">{getApprovedReasonOnly(p.reason)}</p>
                                                             {isRejected && (
                                                                 <span className="text-[8px] text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                                                                     Rejected
@@ -1280,7 +1319,7 @@ export default function DashboardPage() {
                                 <div className="space-y-2.5">
                                     <h4 className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-2">Approved Windows</h4>
                                     {parseReason(selectedPayout.reason).approved.length > 0 ? (
-                                        <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                        <div className="max-h-[140px] md:max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                                             {parseReason(selectedPayout.reason).approved.map((app, idx) => (
                                                 <div key={idx} className="flex items-center justify-between bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-3.5 py-2">
                                                     <div className="flex items-center gap-2">
@@ -1302,7 +1341,7 @@ export default function DashboardPage() {
                                 <div className="space-y-2.5">
                                     <h4 className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-2">Exclusions & Unpaid Shifts</h4>
                                     {parseReason(selectedPayout.reason).rejected.length > 0 ? (
-                                        <div className="max-h-[250px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                                        <div className="max-h-[140px] md:max-h-[250px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                                             {parseReason(selectedPayout.reason).rejected.map((rej, idx) => (
                                                 <div key={idx} className="flex items-start justify-between bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2">
                                                     <div className="flex flex-col gap-0.5">

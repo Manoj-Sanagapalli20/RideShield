@@ -286,7 +286,11 @@ async function startServer() {
       try {
         const records = await Payment.find({ status: 'SUCCESS' });
         const userIds = records.map(r => r.userId);
-        res.status(200).json({ userIds });
+        const activeDrivers = records.map(r => ({
+          userId: r.userId,
+          createdAt: r.createdAt
+        }));
+        res.status(200).json({ userIds, activeDrivers });
       } catch (e) {
         res.status(500).json({ error: e.message });
       }

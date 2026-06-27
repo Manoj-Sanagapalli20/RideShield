@@ -28,7 +28,8 @@ export default function MyPolicyPage() {
 
     useEffect(() => {
         if (!userId) return;
-        fetch(`http://localhost:5002/api/policy/user/${userId}`)
+        const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || "localhost";
+        fetch(`http://${BACKEND_IP}:5002/api/policy/user/${userId}`)
             .then(r => r.ok ? r.json() : null)
             .then(data => setPolicy(data))
             .catch(console.error)

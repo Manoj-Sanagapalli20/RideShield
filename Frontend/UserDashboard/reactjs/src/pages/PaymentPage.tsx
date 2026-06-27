@@ -13,6 +13,8 @@ export default function PaymentPage() {
     const [previewData, setPreviewData] = useState<any>(null);
     const [previewLoading, setPreviewLoading] = useState(true);
 
+    const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || "localhost";
+
     // Get plan details pushed from PlanSelectionPage
     const plan = location.state?.plan || { name: 'Standard RideShield', price: 149 };
     const partnerId = localStorage.getItem('partnerId') || 'drv_test_123';
@@ -20,7 +22,7 @@ export default function PaymentPage() {
     useEffect(() => {
         const fetchPreview = async () => {
             try {
-                const response = await fetch('http://localhost:5002/api/policy/preview-premium', {
+                const response = await fetch(`http://${BACKEND_IP}:5002/api/policy/preview-premium`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -55,7 +57,7 @@ export default function PaymentPage() {
                 emailAddress = parsed.email || emailAddress;
             }
 
-            const response = await fetch('http://localhost:5002/api/policy/select-plan', {
+            const response = await fetch(`http://${BACKEND_IP}:5002/api/policy/select-plan`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

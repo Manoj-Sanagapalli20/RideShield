@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { FiCloudRain, FiAlertCircle, FiCheckCircle, FiDownload, FiZap, FiX } from "react-icons/fi";
 import AppShell from "../components/AppShell";
 
+const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || "localhost";
+
 interface Payout {
     _id: string;
     amount: number;
@@ -76,17 +78,34 @@ const getApprovedReasonOnly = (reason: string) => {
     if (!reason) return "";
     
     const scoreMatch = reason.match(/^Pending Audit \(Anomaly Score: ([0-9.]+)\)/);
-    const detailsPart = getDisruptionDetails(reason).split('. Rejections: ')[0];
+    let detailsPart = getDisruptionDetails(reason);
+    
+    if (detailsPart.includes(". Rejections: ")) {
+        detailsPart = detailsPart.split(". Rejections: ")[0].trim();
+    } else if (detailsPart.includes("Rejections: ")) {
+        detailsPart = detailsPart.split("Rejections: ")[0].trim();
+    }
+    
+    if (detailsPart.endsWith(".")) {
+        detailsPart = detailsPart.slice(0, -1).trim();
+    }
+    
+    const shiftIndex = detailsPart.indexOf(" (Shift:");
+    if (shiftIndex !== -1) {
+        detailsPart = detailsPart.substring(0, shiftIndex).trim();
+    }
+    const cappedIndex = detailsPart.indexOf(" (Capped");
+    if (cappedIndex !== -1) {
+        detailsPart = detailsPart.substring(0, cappedIndex).trim();
+    }
     
     if (scoreMatch) {
         return `Pending Audit (Anomaly Score: ${scoreMatch[1]}) - ${detailsPart}`;
     }
     
-    if (reason.startsWith("Rejected:")) {
-        return reason;
-    }
     return detailsPart;
 };
+
 
 export default function ClaimsHistoryPage() {
     const [payouts, setPayouts] = useState<Payout[]>([]);
@@ -115,7 +134,7 @@ export default function ClaimsHistoryPage() {
     useEffect(() => {
         if (!userId) return;
 
-        fetch(`http://localhost:5003/api/disruption-payouts/${userId}`)
+        fetch(`http://${BACKEND_IP}:5003/api/disruption-payouts/${userId}`)
             .then(res => res.json())
             .then(data => {
                 setPayouts(data.payouts || []);
@@ -179,32 +198,32 @@ export default function ClaimsHistoryPage() {
                                 return (
                                     <div key={payout._id}
                                         onClick={() => setSelectedPayout(payout)}
-                                        className="px-6 py-4 flex justify-between border-b border-white/5 items-center hover:bg-white/2 transition-colors cursor-pointer group"
+                                        className="px-6 py-4 flex justify-between border-b border-white/5 items-center hover:bg-white/2 transition-colors cursor-pointer group gap-4 min-w-0 w-full"
                                     >
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <p className="text-white font-medium group-hover:text-primary-400 transition-colors">{getApprovedReasonOnly(payout.reason)}</p>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                                <p className="text-white font-medium group-hover:text-primary-400 transition-colors break-words leading-tight">{getApprovedReasonOnly(payout.reason)}</p>
                                                  {isRejected ? (
-                                                     <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                     <span className="text-[10px] text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full font-medium shrink-0">
                                                          Rejected
                                                      </span>
                                                  ) : payout.status === 'REVIEW' ? (
-                                                     <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                     <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium shrink-0">
                                                          Under Review
                                                      </span>
                                                  ) : payout.status === 'PROCESSED' ? (
                                                      isPayoutPaid(payout) ? (
-                                                         <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                         <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium shrink-0">
                                                              Credited to UPI
                                                          </span>
                                                      ) : (
-                                                         <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                         <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full font-medium shrink-0">
                                                              Awaiting Payout
                                                          </span>
                                                      )
                                                  ) : null}
                                                  {payout.priority === 'high' && !isRejected && payout.status !== 'REVIEW' && (
-                                                      <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium">
+                                                      <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium shrink-0">
                                                           ⚡ Priority Dispatched
                                                       </span>
                                                  )}
@@ -290,7 +309,7 @@ export default function ClaimsHistoryPage() {
                                 <div className="space-y-2.5">
                                     <h4 className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-2">Approved Windows</h4>
                                     {parseReason(selectedPayout.reason).approved.length > 0 ? (
-                                        <div className="max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                        <div className="max-h-[140px] md:max-h-[250px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                                             {parseReason(selectedPayout.reason).approved.map((app, idx) => (
                                                 <div key={idx} className="flex items-center justify-between bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-3.5 py-2">
                                                     <div className="flex items-center gap-2">
@@ -312,7 +331,7 @@ export default function ClaimsHistoryPage() {
                                 <div className="space-y-2.5">
                                     <h4 className="text-[11px] text-slate-500 uppercase tracking-wider font-bold mb-2">Exclusions & Unpaid Shifts</h4>
                                     {parseReason(selectedPayout.reason).rejected.length > 0 ? (
-                                        <div className="max-h-[250px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                                        <div className="max-h-[140px] md:max-h-[250px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                                             {parseReason(selectedPayout.reason).rejected.map((rej, idx) => (
                                                 <div key={idx} className="flex items-start justify-between bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2">
                                                     <div className="flex flex-col gap-0.5">

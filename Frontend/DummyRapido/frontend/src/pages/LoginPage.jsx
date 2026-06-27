@@ -14,7 +14,8 @@ const LoginPage = () => {
         const password = e.target.elements[1].value;
 
         try {
-            const response = await fetch('http://localhost:5000/api/partners/login', {
+            const BACKEND_IP = import.meta.env.VITE_BACKEND_IP || 'localhost';
+            const response = await fetch(`http://${BACKEND_IP}:5000/api/partners/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone, password })
@@ -56,7 +57,7 @@ const LoginPage = () => {
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Mobile Number</label>
-                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 focus-within:bride-yellow-500 transition-all">
+                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 focus-within:border-yellow-500 transition-all">
                                 <FaPhoneAlt className="text-gray-400 mr-3 shrink-0" />
                                 <input 
                                     type="tel" 
@@ -69,7 +70,7 @@ const LoginPage = () => {
 
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Password</label>
-                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 focus-within:bride-yellow-500 transition-all">
+                            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl py-3 px-4 focus-within:border-yellow-500 transition-all">
                                 <FaLock className="text-gray-400 mr-3 shrink-0" />
                                 <input 
                                     type="password" 

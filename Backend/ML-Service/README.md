@@ -218,7 +218,7 @@ All endpoints are prefixed with `/api/ml`.
 
 > **Note:** If no real disruptions are detected, a mock fallback (`rain: heavy` at 03:00–05:00 and `medium` at 19:00–24:00) is returned as a demo sample.
 
-**Caching:** Results are cached in Redis under the key `disruptions:{date}:{pincode}` with a **30-minute TTL**.
+**Caching:** Results are cached in Redis under the coordinate key `disruptions:{date}:{lat}_{lng}` with a **30-minute TTL**.
 
 ---
 
@@ -474,7 +474,7 @@ All endpoints are prefixed with `/api/ml`.
 
 **Processing logic (`callback`):**
 1. Deserialize the message body
-2. Check Redis for an existing cache entry (`disruptions:{date}:{pincode}`)
+2. Check Redis for an existing cache entry (`disruptions:{date}:{lat}_{lng}`)
 3. If cache hit → skip (no duplicate computation)
 4. If cache miss → call `build_disruption_array()` and store result in Redis with 30-min TTL
 
@@ -519,7 +519,7 @@ format_time_window(19, 24) # → "19:00-24:00"
 
 | Key Pattern | Value Type | TTL | Set By |
 |---|---|---|---|
-| `disruptions:{date}:{pincode}` | JSON dict (full disruption payload) | 30 mins | `disruption.py` route & `location_consumer.py` |
+| `disruptions:{date}:{lat}_{lng}` | JSON dict (full disruption payload) | 30 mins | `disruption.py` route & `location_consumer.py` |
 
 **Cache flow for `/zone-disruptions`:**
 ```
