@@ -136,6 +136,19 @@ async function startServer() {
       }
     });
 
+    // Admin middleware guard to enforce passcode authentication
+    const adminAuthMiddleware = (req, res, next) => {
+      const token = req.headers['x-admin-token'];
+      const expectedPasscode = process.env.ADMIN_PASSCODE || "RigvidaManoj29";
+      if (!token || token !== expectedPasscode) {
+        console.warn(`[PaymentService] Unauthorized administrative access attempt from IP: ${req.ip}`);
+        return res.status(401).json({ error: 'Unauthorized: Invalid admin token.' });
+      }
+      next();
+    };
+
+    app.use('/api/admin', adminAuthMiddleware);
+
     // Admin: Fetch all disruption payouts
     app.get('/api/admin/payouts', async (req, res) => {
       try {

@@ -614,7 +614,7 @@ To provide explainability for the ML decision, individual metrics are classified
 | **Device Motion** | `0.4` to `1.0` | `0.15` to `0.39` (low device motion) | `< 0.15` (completely stationary) |
 | **Login to Claim** | `>= 90` minutes | `15` to `89` minutes (short gap) | `< 15` minutes (instant claim) |
 | **Orders (3hr)** | `>= 2` orders | `1` order (low order volume) | `0` orders (zero active volume) |
-| **Claims (30d)** | `0` or `1` claim | `2` claims (multiple recent claims) | `>= 3` claims (extreme frequency) |
+| **Claims (30d)** | `1` to `3` claims | `4` claims (multiple recent claims) | `>= 5` claims (extreme frequency) |
 | **Neighbors (Claims)**| `>= 5` neighbors | `1` to `4` neighbors (low neighbor activity) | `0` neighbors (isolated claim) |
 | **Cohort Size** | `< 15` accounts in batch | `15` to `29` accounts | `>= 30` accounts (mass registration) |
 | **Fingerprint Score** | `<= 0.20` | `0.21` to `0.40` (elevated similarity) | `> 0.40` (device sharing clone) |
@@ -1179,6 +1179,17 @@ RideShield is not a hackathon prototype — it is built with production-grade st
 - **Security by default** — JWT auth on all endpoints, sensitive data encrypted at rest, zero hardcoded secrets (all via `.env`).
 - **Horizontally scalable** — stateless services can be scaled independently behind a load balancer as worker count grows.
 - **Graceful degradation** — if the ML service is unavailable, the system falls back to rule-based eligibility so workers are never unfairly blocked from payouts.
+- **Admin Authentication & Middleware Protection** — All administrative operations (claims audits, manual overrides, policy toggles) are secured behind a custom token header (`x-admin-token`) checked via middleware on the backend and protected by a responsive visual Lock Screen with eye-toggle controls on the frontend.
+
+---
+
+## Future Improvements
+
+While RideShield is a production-ready prototype, several roadmap enhancements are planned:
+1. **Multi-Role Role-Based Access Control (RBAC):** Move from single passcode-based authentication to fully fledged, database-backed admin user profiles (e.g., Claims Auditor, Risk Manager, Super Admin) with varying levels of write access.
+2. **Audit Logging & Activity Trails:** Store all admin decisions (approvals, rejections, manual overrides) in a dedicated MongoDB collection with timestamps, IP addresses, and user identifiers to enable detailed auditing.
+3. **Advanced Cryptography (MFA / OAuth2):** Integrate Multi-Factor Authentication (MFA) and OAuth2 / OpenID Connect (OIDC) identity providers (e.g., Auth0, Firebase Auth) to secure the admin terminal.
+4. **Automated Reinsurance Triggering:** Build automated backend connections to reinsurance carriers' ledger APIs for real-time reinsurance pool clearing when payout amounts cross catastrophic thresholds.
 
 ---
 

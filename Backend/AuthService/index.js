@@ -1,3 +1,19 @@
+const fs = require('fs');
+const path = require('path');
+try {
+  const envPath = path.resolve(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    fs.readFileSync(envPath, 'utf-8').split('\n').forEach(line => {
+      line = line.trim();
+      if (line && !line.startsWith('#') && line.includes('=')) {
+        const [key, ...valueParts] = line.split('=');
+        process.env[key.trim()] = valueParts.join('=').trim().replace(/^['"]|['"]$/g, '');
+      }
+    });
+  }
+} catch (e) {
+  console.warn('Failed to load local .env file manually:', e.message);
+}
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -7,6 +23,21 @@ const PORT = process.env.PORT || 5001; // Using 5001 to avoid conflict with Dumm
 
 app.use(cors());
 app.use(express.json());
+
+// Admin Auth Route for Admin Dashboard
+app.post('/auth/admin/login', (req, res) => {
+  const { passcode } = req.body;
+  if (!passcode) {
+    return res.status(400).json({ message: "Passcode is required" });
+  }
+
+  const expectedPasscode = process.env.ADMIN_PASSCODE || "RigvidaManoj29";
+  if (passcode === expectedPasscode) {
+    return res.status(200).json({ success: true, token: expectedPasscode });
+  } else {
+    return res.status(401).json({ message: "Invalid passcode. Access denied." });
+  }
+});
 
 // Main Auth Route for User Dashboard
 app.post('/auth/login', async (req, res) => {

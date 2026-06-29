@@ -53,7 +53,7 @@ def _build_synthetic_dataset(n_normal: int = 600, n_anomaly: int = 60, seed: int
             accelerometer_motion_during_claim=float(rng.uniform(0.4, 1.0)),
             login_to_trigger_gap_minutes=float(rng.uniform(15.0, 300.0)),
             orders_3hr_before_disruption=int(rng.integers(1, 6)),
-            claims_last_30_days=int(rng.integers(0, 3)),
+            claims_last_30_days=int(rng.integers(1, 4)),
             neighbor_claims_same_window=int(rng.integers(5, 50)),
             registration_cohort_size=int(rng.integers(1, 15)),
             device_fingerprint_cluster_score=float(rng.uniform(0.0, 0.2))
@@ -66,7 +66,7 @@ def _build_synthetic_dataset(n_normal: int = 600, n_anomaly: int = 60, seed: int
             accelerometer_motion_during_claim=float(rng.uniform(0.0, 0.15)),
             login_to_trigger_gap_minutes=float(rng.uniform(0.0, 10.0)),
             orders_3hr_before_disruption=int(rng.integers(0, 2)),
-            claims_last_30_days=int(rng.integers(3, 10)),
+            claims_last_30_days=int(rng.integers(5, 10)),
             neighbor_claims_same_window=int(rng.integers(0, 4)),
             registration_cohort_size=int(rng.integers(40, 200)),
             device_fingerprint_cluster_score=float(rng.uniform(0.7, 1.0))

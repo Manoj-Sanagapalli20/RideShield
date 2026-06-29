@@ -767,7 +767,7 @@ const processCompensation = async (data) => {
                     if (loginToTriggerGapMinutes < 90) {
                         flags.push(`Short login-to-claim gap (${loginToTriggerGapMinutes.toFixed(0)} mins)`);
                     }
-                    if (claimsLast30Days >= 2) {
+                    if (claimsLast30Days >= 4) {
                         flags.push(`Multiple recent claims (${claimsLast30Days} in 30 days)`);
                     }
                     if (deviceFingerprintClusterScore > 0.25) {
@@ -857,6 +857,19 @@ const processCompensation = async (data) => {
         console.error(`Failed to complete compensation checks for user ${userId}:`, err.message);
     }
 };
+
+// Admin middleware guard to enforce passcode authentication
+const adminAuthMiddleware = (req, res, next) => {
+    const token = req.headers['x-admin-token'];
+    const expectedPasscode = process.env.ADMIN_PASSCODE || "RigvidaManoj29";
+    if (!token || token !== expectedPasscode) {
+        console.warn(`[MainService] Unauthorized administrative access attempt from IP: ${req.ip}`);
+        return res.status(401).json({ error: 'Unauthorized: Invalid admin token.' });
+    }
+    next();
+};
+
+app.use(['/api/disruptions', '/api/claims/trigger-cron', '/api/claims/trigger-premium-cron'], adminAuthMiddleware);
 
 // Developer endpoint to manually trigger/simulate 6 AM cron run
 app.post('/api/claims/trigger-cron', async (req, res) => {

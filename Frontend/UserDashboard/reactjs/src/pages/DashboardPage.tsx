@@ -121,7 +121,9 @@ const getApprovedReasonOnly = (reason: string) => {
     }
     
     if (scoreMatch) {
-        return `Pending Audit (Anomaly Score: ${scoreMatch[1]}) - ${detailsPart}`;
+        const flagMatch = reason.match(/Flagged for: ([^.]+)/);
+        const flagText = flagMatch ? ` [Reason: ${flagMatch[1].trim()}]` : "";
+        return `Pending Audit (Anomaly Score: ${scoreMatch[1]})${flagText}`;
     }
     
     return detailsPart;
@@ -1288,7 +1290,12 @@ export default function DashboardPage() {
 
                             <div className="text-center pb-5 border-b border-white/5 mb-5">
                                 <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold block mb-1">Parametric Insurance Receipt</span>
-                                <h3 className="text-base font-bold text-white mb-3">{selectedPayout.date}</h3>
+                                <h3 className="text-base font-bold text-white mb-1.5">{selectedPayout.date}</h3>
+                                {selectedPayout.reason && (
+                                    <span className="text-xs text-slate-400 font-semibold block mb-4 max-w-md mx-auto leading-normal">
+                                        {getApprovedReasonOnly(selectedPayout.reason)}
+                                    </span>
+                                )}
                                 
                                 <div className="inline-flex flex-col items-center">
                                     <span className={`text-3xl font-extrabold tracking-tight ${selectedPayout.status === 'REJECTED' ? 'text-slate-500' : selectedPayout.status === 'REVIEW' ? 'text-amber-400' : 'text-emerald-400'}`}>

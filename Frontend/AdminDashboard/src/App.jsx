@@ -3,7 +3,7 @@ import {
   FiUsers, FiDollarSign, FiPercent, FiShield, FiActivity, 
   FiCheckCircle, FiXCircle, FiAlertTriangle, FiPlusCircle, 
   FiCalendar, FiMapPin, FiCompass, FiRefreshCw, FiGrid, FiArrowUpRight, FiSearch, FiGlobe,
-  FiCloudRain, FiSun, FiLock, FiAlertOctagon, FiMenu
+  FiCloudRain, FiSun, FiLock, FiAlertOctagon, FiMenu, FiEye, FiEyeOff
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -165,6 +165,13 @@ export default function App() {
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [toast, setToast] = useState(null);
 
+  // Authentication States
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('adminToken'));
+  const [passcode, setPasscode] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [showPasscode, setShowPasscode] = useState(false);
+
   // Detect if running locally (to toggle microservices ports checks)
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -174,10 +181,52 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const res = await fetch(`http://${BACKEND_IP}:5001/auth/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('adminToken', data.token);
+        setIsAuthenticated(true);
+        showToast('Access Granted. Operations Terminal Unlocked.', 'success');
+      } else {
+        const errData = await res.json();
+        setAuthError(errData.message || 'Invalid passcode');
+      }
+    } catch (err) {
+      setAuthError('Connection to Auth Service failed.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    setIsAuthenticated(false);
+    showToast('Logged out successfully.');
+  };
+
+  const getAdminHeaders = (extraHeaders = {}) => {
+    return {
+      'Content-Type': 'application/json',
+      'x-admin-token': localStorage.getItem('adminToken') || '',
+      ...extraHeaders
+    };
+  };
+
   // Fetch Analytics Data
   const fetchAnalytics = async () => {
     try {
-      const res = await fetch(`${PAYMENT_SERVICE_URL}/api/admin/analytics`);
+      const res = await fetch(`${PAYMENT_SERVICE_URL}/api/admin/analytics`, {
+        headers: getAdminHeaders()
+      });
       if (res.ok) {
         const data = await res.json();
         setAnalytics(data);
@@ -195,7 +244,9 @@ export default function App() {
         ? `${PAYMENT_SERVICE_URL}/api/admin/payouts`
         : `${PAYMENT_SERVICE_URL}/api/admin/payouts?status=${statusFilter}`;
       
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: getAdminHeaders()
+      });
       if (res.ok) {
         const data = await res.json();
         setPayouts(data.payouts || []);
@@ -212,7 +263,9 @@ export default function App() {
   const fetchNewsAlerts = async () => {
     setNewsLoading(true);
     try {
-      const res = await fetch(`${PAYMENT_SERVICE_URL}/api/admin/news-alerts?date=${overrideDate}`);
+      const res = await fetch(`${PAYMENT_SERVICE_URL}/api/admin/news-alerts?date=${overrideDate}`, {
+        headers: getAdminHeaders()
+      });
       if (res.ok) {
         const data = await res.json();
         setNewsAlerts(data.alerts || []);
@@ -228,7 +281,9 @@ export default function App() {
   const fetchDrivers = async () => {
     setDriversLoading(true);
     try {
-      const res = await fetch(`${PAYMENT_SERVICE_URL}/api/admin/drivers`);
+      const res = await fetch(`${PAYMENT_SERVICE_URL}/api/admin/drivers`, {
+        headers: getAdminHeaders()
+      });
       if (res.ok) {
         const data = await res.json();
         setDrivers(data.drivers || []);
@@ -244,12 +299,15 @@ export default function App() {
   // Fetch active manual overrides list
   const fetchOverrides = async () => {
     try {
-      const res = await fetch(`${MAIN_SERVICE_URL}/api/disruptions/overrides`);
+      const res = await fetch(`${MAIN_SERVICE_URL}/api/disruptions/overrides`, {
+        headers: getAdminHeaders()
+      });
       if (res.ok) {
         const data = await res.json();
         setOverrides(data.overrides || []);
       }
     } catch (err) {
+
       console.error('Failed to fetch overrides list:', err);
     }
   };
@@ -277,6 +335,8 @@ export default function App() {
 
   // Run initial queries on startup and setup auto-polling
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     fetchAnalytics();
     fetchPayouts();
     fetchOverrides();
@@ -298,15 +358,17 @@ export default function App() {
     }
     
     return () => clearInterval(pollInterval);
-  }, [statusFilter]);
+  }, [statusFilter, isAuthenticated]);
 
   // Fetch corresponding tab data
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     if (activeTab === 'claims') fetchPayouts();
     if (activeTab === 'news') fetchNewsAlerts();
     if (activeTab === 'drivers') fetchDrivers();
     if (activeTab === 'overrides') fetchOverrides();
-  }, [activeTab, statusFilter, overrideDate]);
+  }, [activeTab, statusFilter, overrideDate, isAuthenticated]);
 
   // Handle Claims Review (Approve / Reject)
   const handleReviewAction = async (id, status) => {
@@ -314,7 +376,7 @@ export default function App() {
     try {
       const res = await fetch(`${PAYMENT_SERVICE_URL}/api/admin/payouts/update-status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ id, status })
       });
       
@@ -346,7 +408,7 @@ export default function App() {
     try {
       const res = await fetch(`${MAIN_SERVICE_URL}/api/disruptions/confirm-social`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           date: overrideDate,
           city: overrideCity.trim(),
@@ -384,7 +446,7 @@ export default function App() {
     try {
       const res = await fetch(`${MAIN_SERVICE_URL}/api/disruptions/overrides`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ key })
       });
 
@@ -440,7 +502,7 @@ export default function App() {
     try {
       const res = await fetch(`${PAYMENT_SERVICE_URL}/api/payments/update-status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ userId, status: nextStatus })
       });
       if (res.ok) {
@@ -456,6 +518,7 @@ export default function App() {
       setActionLoadingId(null);
     }
   };
+
 
   // Search filter
   const filteredPayouts = payouts.filter(p => 
@@ -530,7 +593,7 @@ export default function App() {
         </nav>
       </div>
 
-      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className="size-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300">
             ZM
@@ -540,9 +603,109 @@ export default function App() {
             <p className="text-[10px] text-slate-500 font-medium">Operations Control</p>
           </div>
         </div>
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 hover:border-red-500/30 transition-all cursor-pointer"
+        >
+          <FiXCircle className="size-3.5" />
+          <span>Lock Terminal</span>
+        </button>
       </div>
     </div>
   );
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-black text-slate-100 flex items-center justify-center font-poppins relative overflow-hidden">
+        {/* Decorative Glow Elements */}
+        <div className="absolute top-[-10%] left-[-10%] size-[50vw] rounded-full bg-primary-950/15 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] size-[50vw] rounded-full bg-emerald-950/5 blur-[120px] pointer-events-none" />
+
+        {/* Toast Alert */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 20 }}
+              exit={{ opacity: 0, y: -50 }}
+              className={`fixed top-4 right-4 z-50 px-5 py-3.5 rounded-xl border shadow-xl flex items-center gap-3 font-semibold ${
+                toast.type === 'error' 
+                  ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+              }`}
+            >
+              {toast.type === 'error' ? <FiAlertTriangle className="size-5 shrink-0" /> : <FiCheckCircle className="size-5 shrink-0" />}
+              <span>{toast.message}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="w-full max-w-md bg-white/[0.02] border border-white/5 backdrop-blur-md rounded-3xl p-8 shadow-2xl relative z-10 mx-4"
+        >
+          <div className="flex flex-col items-center mb-8">
+            <div className="size-20 bg-primary-500/10 border border-primary-500/25 rounded-2xl flex items-center justify-center p-3 mb-4 shadow-inner shadow-primary-500/10">
+              <LogoSVG className="size-full text-primary-500" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-white m-0">RideShield</h1>
+            <p className="text-xs text-primary-400 font-extrabold uppercase tracking-widest mt-1">Operations Terminal</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                Enter Terminal Passcode
+              </label>
+              <div className="relative flex items-center bg-white/[0.03] border border-white/10 focus-within:border-primary-500 rounded-xl overflow-hidden transition-all">
+                <div className="pl-3.5 text-slate-400 shrink-0">
+                  <FiLock className="size-4.5" />
+                </div>
+                <input 
+                  type={showPasscode ? "text" : "password"} 
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
+                  placeholder={showPasscode ? "Enter passcode" : "••••••••••••••"} 
+                  className="w-full bg-transparent text-white py-3.5 pl-3 pr-10 text-sm outline-none placeholder:text-slate-600 font-mono tracking-widest"
+                  required 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasscode(!showPasscode)}
+                  className="absolute right-3 text-slate-500 hover:text-white transition-colors cursor-pointer shrink-0"
+                >
+                  {showPasscode ? <FiEyeOff className="size-4.5" /> : <FiEye className="size-4.5" />}
+                </button>
+              </div>
+              {authError && (
+                <p className="text-xs text-red-400 font-semibold flex items-center gap-1.5 mt-1.5">
+                  <FiAlertTriangle className="size-4 shrink-0" />
+                  <span>{authError}</span>
+                </p>
+              )}
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={authLoading}
+              className="w-full py-3.5 rounded-xl font-bold text-white bg-primary-600 hover:bg-primary-500 active:scale-[0.98] transition-all shadow-lg shadow-primary-500/10 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {authLoading ? (
+                <FiRefreshCw className="animate-spin size-4" />
+              ) : (
+                <>
+                  <span>Access Terminal</span>
+                  <FiArrowUpRight className="size-4" />
+                </>
+              )}
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-slate-100 flex flex-col md:flex-row font-poppins relative overflow-hidden">
