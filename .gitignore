@@ -58,5 +58,7 @@ env/
 ENV/
 
 # Student Guide 
-RideShield_Student_Guide.md
-RideShield_Interview_Preparation_Guide.md
+Student_Guide.md
+Interview_Preparation.md
+challenges_faced.md
+code_architecture.md
