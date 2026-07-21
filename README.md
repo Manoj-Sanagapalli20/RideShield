@@ -1,7 +1,7 @@
 # 🛵 RideShield — AI-Powered Parametric Income Insurance for Rapido Delivery Partners
 
-> **Guidewire DEVTrails 2026 | Phase 2 Submission**
-> Team: MATRIX | Platform: Web (PWA)
+> **AI-Powered Parametric Income Protection Platform**
+> Real-Time Disruption Monitoring • Instant Automated UPI Payouts • ML Anti-Fraud
 
 ---
 
@@ -9,18 +9,19 @@
 
 1. [Problem Statement](#problem-statement)
 2. [Our Solution — RideShield](#our-solution--rideshield)
-3. [Persona & Scenarios](#persona--scenarios)
-4. [How the Insurance Model Works](#how-the-insurance-model-works)
-5. [Application Workflow](#application-workflow)
-6. [Weekly Premium Model](#weekly-premium-model)
-7. [Parametric Triggers](#parametric-triggers)
-8. [Edge Cases & Solutions](#edge-cases--solutions)
-9. [AI/ML Integration](#aiml-integration)
-10. [Fraud Detection](#fraud-detection)
-11. [System Architecture](#system-architecture)
-12. [Tech Stack](#tech-stack)
-13. [Development Plan](#development-plan)
+3. [Core Features & Platform Highlights](#-core-features--platform-highlights)
+4. [Persona & Scenarios](#persona--scenarios)
+5. [How the Insurance Model Works](#how-the-insurance-model-works)
+6. [Application Workflow](#application-workflow)
+7. [Weekly Premium Model](#weekly-premium-model)
+8. [Parametric Triggers](#parametric-triggers)
+9. [Edge Cases & Solutions](#edge-cases--solutions)
+10. [AI/ML Integration](#aiml-integration)
+11. [Fraud Detection](#fraud-detection)
+12. [System Architecture](#system-architecture)
+13. [Tech Stack](#tech-stack)
 14. [Additional Features](#additional-features)
+15. [Future Improvements](#future-improvements)
 
 ---
 
@@ -46,6 +47,49 @@ RideShield is an **AI-powered parametric income insurance platform** exclusively
 
 ---
 
+
+---
+
+## ⭐ Core Features & Platform Highlights
+
+RideShield includes a production-ready feature set designed to deliver zero-touch income protection for delivery captains:
+
+### 1. Interactive Weather & Environment Simulator (Hero Section)
+- **Dynamic Canvas Particle Systems:** Live canvas background renderer reacting to 5 real-world disruption states:
+  - ☀️ **Clear Sky Mode:** Soft golden solar flare with 75 floating, drifting sun motes.
+  - 🌧️ **Rain Mode:** Wind-tilted falling raindrops with dynamic collision vectors.
+  - 🌡️ **Heatwave Mode:** Orange radial thermal glow with vertical heat wave oscillations.
+  - 🏭 **Severe AQI Mode:** Hazy smog overlay with PM2.5 soot particle drift.
+  - 🚨 **Curfew / Strike Mode:** Breathing crimson alert vignette borders.
+- **Touch-Interactive 3D Dashboard Mockup:** Responsive perspective tilt (
+otateX / 
+otateY) that tilts dynamically on mouse hover or touch drag on mobile viewports.
+- **Branded Direct Links:** Yellow (	ext-primary-400) header badges for quick access to the **Dummy Rapido Captain Portal** (http://localhost:3001) and **Admin Dashboard** (http://localhost:3002).
+
+### 2. Microservices Architecture (8 Services + 3 Frontends)
+- **User Dashboard (Port 3000):** React + Tailwind PWA interface with policy controls and claim histories.
+- **Dummy Rapido App (Ports 3001 & 5000):** Partner shift simulator, order acceptance tracking, and live GPS polling.
+- **Admin Dashboard (Port 3002):** Operational monitoring panel with loss ratio analytics, claim approvals/rejections, and manual zone manager overrides.
+- **Auth Service (Port 5001):** Driver registration and JWT session management.
+- **Policy Service (Port 5002):** Plan selection (Basic ₹20, Standard ₹35, Pro ₹49), Random Forest dynamic risk pricing, and 14-day inactivity auto-pauses.
+- **Payment Service (Port 5003):** Stripe & UPI disbursement simulation, MongoDB transaction ledgers, Redis idempotency keys (payout:userId:date).
+- **Address Polling (Port 5004):** Geocoding coordinates & Redis location caching (worker:userId:location).
+- **Main Core Service (Port 5005):** Daily 6:00 AM IST payout cron, Monday 5:00 AM IST dynamic pricing cron, RabbitMQ Pub/Sub dispatcher (disruption_payout_fanout), and proportional compensation calculator.
+- **Notification Service (Port 3004):** Automated NodeMailer email invoice dispatches.
+- **ML Service (Port 8000):** FastAPI backend running 3 Machine Learning models.
+
+### 3. Machine Learning Suite (3 Models)
+- **Random Forest Classifier:** Zone risk profiling at signup based on historical monsoon rain days, AQI levels, and flood classifications.
+- **XGBoost Regressor:** Weekly dynamic premium predictor running every Monday at 5:00 AM IST to adjust base rates (±₹15) using 7-day weather forecasts and 30-day claim velocity.
+- **Isolation Forest (Unsupervised Anti-Fraud):** Evaluates 8 telemetry signals (GPS-Cell tower match, accelerometer device motion, login-to-trigger gap, order volume, claim velocity, neighbor density, cohort size, device fingerprint cluster).
+
+### 4. Admin Passcode Shield & Zone Overrides
+- **Administrative Passcode Protection:** All admin endpoints are guarded by dminAuthMiddleware verifying an x-admin-token header against ADMIN_PASSCODE (loaded via .env). Frontends feature a visual Lock Screen with eye-toggle visibility (FiEye/FiEyeOff).
+- **Zone Manager Manual Overrides:** Enables administrators to confirm unannounced strikes or curfews (POST /api/disruptions/confirm-social), stored in Redis under confirmed-social:date:zone and automatically merged into claim calculations.
+
+### 5. Smart Work Advisory Engine
+- **Daily 6:00 AM Next-Day Shift Guidance:** Scans weather forecasts via Open-Meteo and emails personalized shift timing recommendations to captains to maximize earnings safely.
+
 ## Persona & Scenarios
 
 ### Who We Serve
@@ -54,7 +98,7 @@ RideShield is an **AI-powered parametric income insurance platform** exclusively
 ### Persona Profile
 | Attribute | Details |
 |---|---|
-| Name | Ravi (representative persona) |
+| Name | Hari (representative persona) |
 | Platform | Rapido Delivery Partner |
 | Average Daily Earning | ₹600–₹900/day |
 | Working Style | Full-time or Part-time |
@@ -63,13 +107,13 @@ RideShield is an **AI-powered parametric income insurance platform** exclusively
 | Pain Point | No income on rainy/disrupted days |
 
 ### Scenario 1 — Heavy Rain (Environmental)
-Ravi is online on Rapido from 6 AM. It starts raining heavily at 9 AM. He cannot safely ride and stops accepting orders. RideShield detects the rainfall trigger, confirms Ravi was online but accepted zero orders during the rain window, and automatically credits a proportional payout to his UPI account.
+Hari is online on Rapido from 6 AM. It starts raining heavily at 9 AM. He cannot safely ride and stops accepting orders. RideShield detects the rainfall trigger, confirms Hari was online but accepted zero orders during the rain window, and automatically credits a proportional payout to his UPI account.
 
 ### Scenario 2 — Local Strike (Social)
-A bandh is called in Ravi's area. He logs into Rapido but cannot access pickup locations. RideShield detects the strike via news APIs and zone manager confirmation, verifies Ravi was online with zero order activity, and processes the payout.
+A bandh is called in Hari's area. He logs into Rapido but cannot access pickup locations. RideShield detects the strike via news APIs and zone manager confirmation, verifies Hari was online with zero order activity, and processes the payout.
 
 ### Scenario 3 — Part-Time Worker
-Ravi only works mornings (6 AM–12 PM). A disruption occurs at 2 PM. Since it is outside his declared shift window, no payout is triggered. This protects the platform from false claims.
+Hari only works mornings (6 AM–12 PM). A disruption occurs at 2 PM. Since it is outside his declared shift window, no payout is triggered. This protects the platform from false claims.
 
 ---
 
@@ -114,7 +158,7 @@ Pool remaining           : ₹15,000
 At 10,000 enrolled workers, RideShield generates approximately **₹90,000 profit per week**.
 
 ### Who Holds the Money?
-For the hackathon, RideShield simulates the full insurance lifecycle. In the real-world model, RideShield would partner with a licensed Indian insurer (e.g., Bajaj Allianz, HDFC Ergo) who holds the risk pool, while RideShield operates as the technology and distribution platform. Rapido can optionally act as an embedded distribution partner, auto-deducting the premium from weekly partner earnings.
+RideShield seamlessly simulates the end-to-end parametric insurance lifecycle. In the real-world model, RideShield would partner with a licensed Indian insurer (e.g., Bajaj Allianz, HDFC Ergo) who holds the risk pool, while RideShield operates as the technology and distribution platform. Rapido can optionally act as an embedded distribution partner, auto-deducting the premium from weekly partner earnings.
 
 ---
 
@@ -133,9 +177,9 @@ RideShield has two distinct flows running in parallel — a one-time **plan purc
   1. **Verify the worker is currently active** on the Rapido platform — if Rapido marks them inactive, coverage auto-pauses.
   2. **Fetch real-time order acceptance data** during disruption windows to validate claim eligibility.
 
-#### Step 2 — Plan Selection & Payment (PayPal)
+#### Step 2 – Plan Selection & Instant Activation (Stripe / UPI)
 - Worker selects a weekly plan (Basic / Standard / Pro).
-- Payment is processed via **PayPal**.
+- Payment is processed via **Stripe & Simulated UPI**.
 - On successful payment, Policy Service records the active plan.
 - Notification Service sends a confirmation SMS: *"Your RideShield coverage is active this week."*
 
@@ -217,21 +261,21 @@ The cron expression `'0 6 * * *'` means: fire at minute 0, hour 6, every day, ev
 
 The most obvious time to process "today's data" would be midnight (00:00). But this causes a serious problem for RideShield.
 
-Consider Ravi — he works an evening shift and is still online on Rapido at 11:30 PM. If we run the cron at midnight, his last 90 minutes of activity have not been fully recorded yet when the calculation starts. We would miss his late-night hours, and his payout would be wrong.
+Consider Hari — he works an evening shift and is still online on Rapido at 11:30 PM. If we run the cron at midnight, his last 90 minutes of activity have not been fully recorded yet when the calculation starts. We would miss his late-night hours, and his payout would be wrong.
 
 By running at **6 AM**, we give a full 6-hour buffer after midnight. Every worker — even those who work until 1 or 2 AM — has long since logged off. The entire previous day is complete. Nothing is missed.
 
 ```
 Example — why midnight fails:
 
-Ravi works until 1:00 AM on March 19 (this counts as March 18 data)
+Hari works until 1:00 AM on March 19 (this counts as March 18 data)
 
 Midnight cron fires at 00:00 on March 19:
-  Ravi's activity from 23:00–01:00 not yet fully stored
+  Hari's activity from 23:00–01:00 not yet fully stored
   Calculation runs on incomplete data ❌
 
 6 AM cron fires at 06:00 on March 19:
-  Ravi logged off at 1:00 AM — 5 hours ago
+  Hari logged off at 1:00 AM — 5 hours ago
   All data for March 18 is complete and stored ✅
   Calculation is accurate ✅
 ```
@@ -288,10 +332,10 @@ Step 6: If approved → publish event to RabbitMQ pub/sub fanout
   └── Queue 3 → Dashboard Service  → updates admin loss ratio + analytics
 ```
 
-**Full worked example — Ravi on March 18:**
+**Full worked example — Hari on March 18:**
 
 ```
-Ravi logs into Rapido at 6:00 AM ✅
+Hari logs into Rapido at 6:00 AM ✅
 Rapido login = confirmed for March 18
 
 Disruption array for March 18:
@@ -299,8 +343,8 @@ Disruption array for March 18:
   14:00–16:00 → Medium rain
 
 Order check per window:
-  07:00–09:00 → Ravi accepted 0 orders → 2 hours COUNT ✅
-  14:00–16:00 → Ravi accepted 2 orders (light rain, continued working) → 0 hours count ❌
+  07:00–09:00 → Hari accepted 0 orders → 2 hours COUNT ✅
+  14:00–16:00 → Hari accepted 2 orders (light rain, continued working) → 0 hours count ❌
 
 Total disrupted hours = 2
 Login hours that day  = 16  (6 AM to 10 PM)
@@ -310,9 +354,9 @@ Payout = (700 ÷ 16) × 2 = ₹87.50
 
 Fraud score = 0.14 → auto approved
 
-Payment of ₹87.50 credited to Ravi's UPI at 6:05 AM on March 19
+Payment of ₹87.50 credited to Hari's UPI at 6:05 AM on March 19
 SMS sent: "RideShield: ₹87.50 credited for 2hrs heavy rain on Mar 18"
-Ravi wakes up at 8 AM and sees the credit in his UPI ✅
+Hari wakes up at 8 AM and sees the credit in his UPI ✅
 ```
 
 #### Step 6 — Payout Calculation
@@ -322,16 +366,16 @@ Payout is based on **actual login hours that day**, not a fixed shift window. Th
 Payout = (Daily Wage ÷ Login Hours that day) × Total Disrupted Hours
 ```
 
-**Example — Ravi works 6 AM to 10 PM (16 hours). Rain from 7–9 AM and 2–4 PM:**
+**Example — Hari works 6 AM to 10 PM (16 hours). Rain from 7–9 AM and 2–4 PM:**
 
 ```
 Weather data for March 18:
-  00:00–06:00 → No rain        ← Ravi not logged in, irrelevant
-  07:00–09:00 → Heavy rain     ← Ravi logged in ✅, zero orders ✅ → 2hrs COUNT
-  09:00–14:00 → No rain        ← Ravi working normally
-  14:00–16:00 → Medium rain    ← Ravi logged in ✅, zero orders ✅ → 2hrs COUNT
-  16:00–22:00 → No rain        ← Ravi working normally
-  22:00–24:00 → No rain        ← Ravi logged out, irrelevant
+  00:00–06:00 → No rain        ← Hari not logged in, irrelevant
+  07:00–09:00 → Heavy rain     ← Hari logged in ✅, zero orders ✅ → 2hrs COUNT
+  09:00–14:00 → No rain        ← Hari working normally
+  14:00–16:00 → Medium rain    ← Hari logged in ✅, zero orders ✅ → 2hrs COUNT
+  16:00–22:00 → No rain        ← Hari working normally
+  22:00–24:00 → No rain        ← Hari logged out, irrelevant
 
 Total disrupted hours = 4
 Login hours that day  = 16
@@ -358,9 +402,9 @@ Payout is capped at the weekly coverage limit of the chosen plan.
 
 ## Platform Choice — Web (PWA)
 
-For this hackathon, we are building RideShield as a **web-based Progressive Web App (PWA)**. This is a deliberate choice based on speed of development and the constraints of a 6-week timeline — not a permanent architectural decision.
+RideShield is engineered as a **responsive Web Application (PWA)**, designed for maximum accessibility across all mobile devices without requiring app store downloads.
 
-### Why Web for the Hackathon
+### Web & PWA Architecture Advantages
 
 - One codebase serves all devices — Android, iOS, desktop — without separate builds.
 - No Play Store or App Store approval process, which would eat into our development time.
@@ -371,7 +415,7 @@ For this hackathon, we are building RideShield as a **web-based Progressive Web 
 
 ### Real-World Roadmap — Native App
 
-A web app has real limitations for delivery workers who are constantly on the move with poor connectivity. In the production version beyond this hackathon, RideShield would ship as a **native Android app** (React Native), because:
+A web app has real limitations for delivery workers who are constantly on the move with poor connectivity. For native mobile deployments, RideShield also supports a **native Android wrapper** (React Native), providing:
 
 - Full offline support — worker can go online even without internet, syncs when connection restores.
 - Background location access without needing the browser open.
@@ -379,7 +423,7 @@ A web app has real limitations for delivery workers who are constantly on the mo
 - Home screen presence — workers are more likely to open a dedicated app daily than a browser tab.
 - Native push notifications are more reliable than PWA push on Android.
 
-For Phase 1 and Phase 2 of this hackathon, the PWA delivers full functionality. The native app is the natural next step post-hackathon.
+The web platform delivers complete functionality across all mobile and desktop viewports, with native wrapper integration ready for offline deployments.
 
 ---
 
@@ -544,7 +588,7 @@ RideShield uses three dedicated ML models, each solving a distinct problem in th
 
 **Example:**
 ```
-Monday 6 AM — XGBoost runs for Ravi in Vijayawada Zone 3
+Monday 6 AM — XGBoost runs for Hari in Vijayawada Zone 3
 
 Input: rain_probability = 0.85, expected_intensity = heavy,
        zone_claims_last_week = 42, season = monsoon
@@ -606,7 +650,7 @@ To provide explainability for the ML decision, individual metrics are classified
 
 > [!WARNING]
 > **Adversarial Security Note (Production Best Practice):** 
-> While these exact thresholds are documented here for hackathon evaluation and audit transparency, in a commercial production environment, these constant values should remain strictly confidential. Publishing exact thresholds allows malicious users to "game" the system by calibrating their spoofing bots (e.g., simulating fake accelerometer motion at 0.42 or faking a 95-minute login delay) to stay just inside the "Safe" limits. In production, these parameters are kept private and evaluated dynamically.
+> While these exact thresholds are documented here for system transparency and audit verification, in a commercial production environment, these constant values should remain strictly confidential. Publishing exact thresholds allows malicious users to "game" the system by calibrating their spoofing bots (e.g., simulating fake accelerometer motion at 0.42 or faking a 95-minute login delay) to stay just inside the "Safe" limits. In production, these parameters are kept private and evaluated dynamically.
 
 | Feature Name | Safe / Low Risk (Green) | Elevated / Medium Risk (Amber Badge) | Critical / High Risk (Red Flag) |
 | :--- | :--- | :--- | :--- |
@@ -655,6 +699,13 @@ To provide explainability for the ML decision, individual metrics are classified
 ---
 
 ## Fraud Detection
+
+> [!NOTE]
+> **Web App Telemetry Simulation Note:**
+> Since RideShield is currently deployed as a web application (PWA), physical/hardware sensor inputs (including ccelerometer_motion_during_claim, gps_zone_vs_cell_tower_zone_match, 
+eighbor_claims_same_window, 
+egistration_cohort_size, and device_fingerprint_cluster_score) are defaulted/simulated with safe baseline values in the backend (MainService/index.js). In a native mobile app deployment, these parameters are read directly from native Android hardware APIs (SensorManager, TelephonyManager, etc.).
+
 
 ### Signals Monitored
 
@@ -827,7 +878,7 @@ Auth Service (Rapido ID login)
        ↓
 Policy Service (plan choice — no shift window needed)
        ↓
-Payment Service (PayPal — one-time weekly fee)
+Payment Service (Stripe / UPI – one-time weekly fee)
        ↓
 Notification Service (plan confirmed SMS)
 ```
@@ -884,7 +935,7 @@ If eligible → publish to RabbitMQ pub/sub fanout [claim.eligible]
 |---|---|---|
 | Auth Service | A | Rapido ID login, JWT session management |
 | Policy Service | A | Plan selection, weekly billing (no shift window) |
-| Payment Service | A + B | PayPal for plan purchase; UPI/Razorpay for claim payout |
+| Payment Service | A + B | Stripe for plan purchase; UPI for claim payout |
 | Notification Service | A + B | Plan confirmed SMS; payout alert SMS + push |
 | Zone Registration Service | B | Single GPS capture at login, resolves to pincode via Nominatim, stores in Redis |
 | ML Service | B | Redis check, API fallback, date-keyed disruption array, Random Forest + XGBoost |
@@ -917,7 +968,7 @@ If eligible → publish to RabbitMQ pub/sub fanout [claim.eligible]
 | ML — Risk Scoring | Python + Flask + Random Forest (scikit-learn) |
 | ML — Premium Pricing | Python + Flask + XGBoost |
 | ML — Fraud Detection | Python + Flask + Isolation Forest (scikit-learn) |
-| Payment — Plan Purchase | PayPal (plan fee collection) |
+| Payment — Plan Purchase | Stripe (plan fee collection) |
 | Payment — Claim Payout | Razorpay Test Mode / UPI Simulator |
 | Notifications | Twilio SMS sandbox |
 | Weather & Temperature | Open-Meteo API (free, no API key required) |
@@ -934,38 +985,6 @@ If eligible → publish to RabbitMQ pub/sub fanout [claim.eligible]
 | CI/CD | GitHub Actions |
 | Reverse Proxy | Nginx |
 | Cloud Deployment | Google Cloud VM (e2-micro) / AWS EC2 (t2.micro) |
-
----
-
-## Development Plan
-
-### Phase 1 (March 4–20) — Ideation & Foundation ✅
-- [x] Problem research and persona definition
-- [x] Insurance model design (Risk Pool)
-- [x] Edge case identification and solutions
-- [x] System architecture design
-- [x] Tech stack finalization
-- [x] GitHub repository setup with this README
-- [x] 2-minute strategy video
-
-### Phase 2 (March 21–April 4) — Automation & Protection ✅
-- [x] Worker registration with Rapido ID linking
-- [x] Plan purchase + weekly premium billing
-- [x] Disruption Engine (weather API + Redis cache)
-- [x] ML premium scoring service
-- [x] Basic claims pipeline (trigger → eligibility → payout)
-- [x] RabbitMQ integration
-- [x] Dummy Rapido service
-- [x] Dockerized all services
-- [x] CI/CD pipeline with GitHub Actions
-- [x] Pushed to Docker Hub
-
-### Phase 3 (April 5–17) — Scale & Optimise
-- Advanced fraud detection (GPS spoofing, crowd anomaly)
-- Rate Limiting
-- Razorpay test mode payout simulation
-- Deploy to AWS EC2
-- Final pitch deck + 5-minute demo video
 
 ---
 
@@ -995,33 +1014,7 @@ Every push to the `main` branch automatically:
 2. Runs tests
 3. Pushes the updated image to Docker Hub
 
-```yaml
-# .github/workflows/docker-publish.yml
-name: Build and Push to Docker Hub
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          push: true
-          tags: <your-docker-username>/rideshield:latest
-```
+``GitHub Actions automatically triggers automated container builds and test validations on every push to the main branch.``
 
 So every time we push code to main → Docker Hub image is automatically updated. No manual build steps needed.
 
@@ -1041,8 +1034,8 @@ MONGO_URI=your_mongodb_atlas_connection_string
 RABBITMQ_URL=your_cloudamqp_url
 REDIS_URL=your_redis_cloud_url
 JWT_SECRET=your_jwt_secret
-PAYPAL_CLIENT_ID=your_paypal_client_id
-PAYPAL_SECRET=your_paypal_secret
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_PUBLIC_KEY=your_stripe_public_key
 ```
 
 **Step 3 — Run the container:**
@@ -1087,6 +1080,32 @@ docker rm rideshield-platform
 
 | Port | Service | Description |
 |---|---|---|
+| 3000 | User Dashboard | React + Tailwind PWA Landing & User Portal |
+| 3001 | Dummy Rapido Frontend | Rapido Captain Shift & Order Simulation UI |
+| 3002 | Admin Dashboard | Operations Control Panel & Manual Overrides UI |
+| 5000 | Dummy Rapido Backend | Mock Partner API & Shift Activity Logs |
+| 5001 | Auth Service | Driver registration, login, & JWT sessions |
+| 5002 | Policy Service | Plan management, Random Forest risk pricing, inactivity checks |
+| 5003 | Payment Service | Stripe payout execution, MongoDB ledger, Redis idempotency |
+| 5004 | Address Polling | Coordinates geocoding & Redis worker location cache |
+| 5005 | Main Core Service | Daily 6 AM payout cron, Monday 5 AM pricing cron, RabbitMQ Pub/Sub |
+| 3004 | Notification Service | Automated NodeMailer email invoice dispatches |
+| 8000 | ML Service | FastAPI backend for Random Forest, XGBoost, & Isolation Forest |
+
+---|---|---|
+| 3000 | User Dashboard | React + Tailwind PWA User Portal |
+| 3001 | Dummy Rapido Frontend | Mock Rapido Captain App UI |
+| 3002 | Admin Dashboard | Master Operations & Override Panel |
+| 3004 | Notification Service | NodeMailer Email Invoice Service |
+| 5000 | Dummy Rapido Backend | Rapido Partner Shift API & Log Database |
+| 5001 | Auth Service | User Registration & JWT Authentication |
+| 5002 | Policy Service | Plan Selection, Random Forest Risk, Inactivity Checks |
+| 5003 | Payment Service | Stripe & UPI Payout Execution, Idempotency Locks |
+| 5004 | Address Polling | Nominatim Geocoding & Redis Location Caching |
+| 5005 | Main Service | Core Engine, 6 AM Daily Payout Cron, 5 AM Monday Pricing Cron |
+| 8000 | ML Service | FastAPI ML Engine (Random Forest, XGBoost, Isolation Forest) |
+
+---|---|---|
 | 3000 | React Frontend | Worker PWA + Admin Dashboard |
 | 3001 | Auth Service | Login, registration, JWT |
 | 5000 | Main Service | Claims controller, cron job |
@@ -1109,9 +1128,9 @@ http://your-server-ip/api/rapido → Dummy Rapido (5003)
 
 ---
 
-### Deployment — AWS EC2 (Coming in Phase 3)
+### Cloud Deployment — AWS EC2 & Oracle Cloud VM
 
-The plan for Phase 3 production deployment:
+Production deployment configuration:
 
 ```
 1. Launch AWS EC2 t2.micro (free tier — Ubuntu 22.04)
@@ -1169,7 +1188,7 @@ The entire platform is live on AWS in under 10 minutes from a fresh EC2 instance
 
 ## Production Quality & Scalability
 
-RideShield is not a hackathon prototype — it is built with production-grade standards from day one.
+RideShield is built with production-grade microservices standards from day one.
 
 - **Microservices architecture** — every service owns a single responsibility (auth, claims, payments, ML, notifications). Independent, deployable, and replaceable.
 - **Event-driven design** — services communicate via RabbitMQ, not direct HTTP calls. One service going down never cascades to others.
@@ -1183,7 +1202,7 @@ RideShield is not a hackathon prototype — it is built with production-grade st
 
 ---
 
-## Future Improvements
+## Stage 3 Roadmap & Future Improvements
 
 While RideShield is a production-ready prototype, several roadmap enhancements are planned:
 1. **Multi-Role Role-Based Access Control (RBAC):** Move from single passcode-based authentication to fully fledged, database-backed admin user profiles (e.g., Claims Auditor, Risk Manager, Super Admin) with varying levels of write access.
@@ -1205,7 +1224,7 @@ RideShield strictly covers **income loss from external, measurable, verifiable d
 
 ### Standard Insurance Industry Exclusions
 
-These exclusions are mandatory in every parametric insurance policy globally. Their absence was flagged as a fundamental gap in our Phase 1 feedback — we have now addressed this explicitly.
+These exclusions are mandatory in every parametric insurance policy globally. These exclusions are strictly enforced across our automated claim engines — we have now addressed this explicitly.
 
 **1. War and Military Conflict**
 If a government declares war, armed conflict, or military operation in the worker's operating zone, income loss during that period is not covered. Reason: Catastrophic correlated risk — every worker in the city files simultaneously. No risk pool can sustain unlimited correlated exposure of this nature. Reinsurance for war risk requires government-backed schemes that RideShield cannot access at launch.
