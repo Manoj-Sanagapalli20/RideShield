@@ -27,7 +27,7 @@
 
 ## Problem Statement
 
-India's Rapido delivery partners are the backbone of our fast-paced food economy. However, external disruptions — heavy rain, extreme heat, severe pollution, curfews, and local strikes — can reduce or completely halt their working hours, causing them to lose **20–30% of their monthly income**.
+India's Rapido delivery partners are the backbone of our fast-paced delivery economy. However, external disruptions — heavy rain, extreme heat, severe pollution, curfews, and local strikes — can reduce or completely halt their working hours, causing them to lose **20–30% of their monthly income**.
 
 Currently, gig workers have **zero income protection** against these uncontrollable events. When disruptions occur, they bear the full financial loss with no safety net.
 
@@ -37,7 +37,7 @@ Currently, gig workers have **zero income protection** against these uncontrolla
 
 ## Our Solution — RideShield
 
-RideShield is an **AI-powered parametric income insurance platform** exclusively built for **Rapido food delivery partners**. It automatically detects real-world disruptions using live data, verifies worker activity through Rapido platform integration, and **instantly pays out lost wages** — with zero manual claim filing.
+RideShield is an **AI-powered parametric income insurance platform** exclusively built for **Rapido delivery partners**. It automatically detects real-world disruptions using live data, verifies worker activity through Rapido platform integration, and **instantly pays out lost wages** — with zero manual claim filing.
 
 ### Core Principles
 - **Coverage**: Loss of income only. No vehicle repair, no health, no accident coverage.
@@ -93,7 +93,7 @@ otateY) that tilts dynamically on mouse hover or touch drag on mobile viewports.
 ## Persona & Scenarios
 
 ### Who We Serve
-**Rapido Food Delivery Partners** — two-wheeler delivery agents operating in Tier 1 and Tier 2 Indian cities.
+**Rapido Delivery Partners** — two-wheeler delivery agents operating in Tier 1 and Tier 2 Indian cities.
 
 ### Persona Profile
 | Attribute | Details |
