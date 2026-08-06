@@ -21,6 +21,7 @@ interface Payout {
     status: string;
     priority?: string;
     createdAt: string;
+    timestamp?: string;
 }
 
 interface PolicyData {
@@ -28,6 +29,7 @@ interface PolicyData {
     dailyWage: number;
     status: string;
     premiumAmount?: number;
+    explanation?: string;
 }
 
 const spring = { type: "spring" as const, stiffness: 280, damping: 60 };
@@ -228,8 +230,8 @@ export default function DashboardPage() {
         let fetchedPayouts = [];
         try {
             const [payoutRes, policyRes] = await Promise.allSettled([
-                fetch(`${PAYMENT_SERVICE}/api/disruption-payouts/${userId}`),
-                fetch(`${POLICY_SERVICE}/api/policy/user/${userId}`),
+                fetch(`${PAYMENT_SERVICE}/api/disruption-payouts/${userId}?t=${Date.now()}`),
+                fetch(`${POLICY_SERVICE}/api/policy/user/${userId}?t=${Date.now()}`),
             ]);
             if (payoutRes.status === "fulfilled" && payoutRes.value.ok) {
                 const d = await payoutRes.value.json();
@@ -331,31 +333,26 @@ export default function DashboardPage() {
 
                 setTimeout(() => {
                     setAnalysisStage("Retrieving partner shift activity logs...");
-                }, 900);
+                }, 1200);
 
                 setTimeout(() => {
                     setAnalysisStage("Verifying hourly rain and social alerts...");
-                }, 1800);
+                }, 2600);
 
                 setTimeout(async () => {
-                    const firstFetch = await loadData();
+                    await loadData();
                     setIsAnalyzing(false);
-
-                    // Polling for the new payout to be written to DB asynchronously
-                    const targetDate = date;
-                    const hasNewPayout = firstFetch.some(p => p.date === targetDate);
-                    if (!hasNewPayout) {
-                        let attempts = 0;
-                        const interval = setInterval(async () => {
-                            attempts++;
-                            const currentFetch = await loadData();
-                            const found = currentFetch.some(p => p.date === targetDate);
-                            if (found || attempts >= 5) {
-                                clearInterval(interval);
-                            }
-                        }, 2000);
-                    }
-                }, 2600);
+                    
+                    // Unconditional background polling: check every 2 seconds, 5 times (total 10 seconds)
+                    let attempts = 0;
+                    const interval = setInterval(async () => {
+                        attempts++;
+                        await loadData();
+                        if (attempts >= 5) {
+                            clearInterval(interval);
+                        }
+                    }, 2000);
+                }, 4000);
 
             } catch (err) {
                 console.error("Simulation failed:", err);
@@ -440,7 +437,7 @@ export default function DashboardPage() {
     };
     const weeklyLimit = weeklyLimitMap[planNameClean] || 600;
 
-    const isPayoutPaid = (p) => {
+    const isPayoutPaid = (p: Payout) => {
         const dateStr = p.createdAt || p.timestamp || p.date;
         if (!dateStr) return true;
         const createdTime = new Date(dateStr);
