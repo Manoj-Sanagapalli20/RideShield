@@ -284,10 +284,9 @@ export default function DashboardPage() {
                 return;
             }
 
-            // 2. Prevent infinite simulation loop
-            const triggerKey = `${city}_${date}`;
+            // 2. Prevent duplicate simulation loop for exact same coordinates & date
+            const triggerKey = `${city}_${date}_${latStr || ''}_${lngStr || ''}`;
             if (triggerKey === lastTriggered) {
-                loadData();
                 return;
             }
 
@@ -313,15 +312,11 @@ export default function DashboardPage() {
                     if (d && d.success) {
                         lat = d.lat;
                         lon = d.lng;
-                        if (!pc) {
-                            pc = d.pincode || "";
-                        }
-                        setSearchParams({ city, date, lat: String(lat), lng: String(lon), pincode: pc }, { replace: true });
+                        if (!pc) pc = d.pincode || "";
                     } else {
                         lat = 16.0145;
                         lon = 80.7828;
                         pc = "522256";
-                        setSearchParams({ city, date, lat: String(lat), lng: String(lon), pincode: pc }, { replace: true });
                     }
                 }
 
@@ -343,12 +338,13 @@ export default function DashboardPage() {
                     await loadData();
                     setIsAnalyzing(false);
                     
-                    // Unconditional background polling: check every 2 seconds, 5 times (total 10 seconds)
+                    // Background polling loop to guarantee UI updates immediately once DB is written
                     let attempts = 0;
                     const interval = setInterval(async () => {
                         attempts++;
-                        await loadData();
-                        if (attempts >= 5) {
+                        const currentFetch = await loadData();
+                        const found = currentFetch && currentFetch.some((p: Payout) => p.date === date);
+                        if (found || attempts >= 5) {
                             clearInterval(interval);
                         }
                     }, 2000);
@@ -409,8 +405,21 @@ export default function DashboardPage() {
     const handleManualLocation = async (e: React.FormEvent) => {
         e.preventDefault();
         setLastTriggered("");
-        setSearchParams({ city: manualCity, date: manualDate, pincode: manualPincode });
         setShowLocationModal(false);
+        setIsAnalyzing(true);
+        setAnalysisStage(`Searching coordinates for ${manualCity}...`);
+
+        try {
+            const res = await fetch(`${ML_SERVICE}/api/ml/geocode?city=${encodeURIComponent(manualCity)}`);
+            const d = await res.json();
+            const lat = d && d.success ? d.lat : 16.0145;
+            const lng = d && d.success ? d.lng : 80.7828;
+            const pc = (d && d.success && d.pincode) ? d.pincode : manualPincode || "522256";
+
+            setSearchParams({ city: manualCity, date: manualDate, lat: String(lat), lng: String(lng), pincode: pc });
+        } catch {
+            setSearchParams({ city: manualCity, date: manualDate, lat: "16.0145", lng: "80.7828", pincode: manualPincode || "522256" });
+        }
     };
 
     const latestPayout = payouts[0];
